@@ -1,0 +1,46 @@
+{
+  "name": "repo-brief",
+  "version": "0.1.0",
+  "description": "Generate an AI-ready project brief for any codebase.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rogerdigital/repo-brief.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rogerdigital/repo-brief/issues"
+  },
+  "homepage": "https://github.com/rogerdigital/repo-brief#readme",
+  "bin": {
+    "repo-brief": "./dist/src/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "examples"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "pnpm build && node dist/src/cli.js",
+    "test": "pnpm build && node --test dist/tests/*.test.js",
+    "verify": "pnpm test"
+  },
+  "keywords": [
+    "ai-agents",
+    "coding-agent",
+    "agents-md",
+    "claude-code",
+    "codex",
+    "cursor",
+    "developer-tools",
+    "cli"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3"
+  }
+}

@@ -1,0 +1,14 @@
+RepoBrief scanned your codebase.
+
+Detected:
+- Package manager: pnpm
+- Frameworks: Next.js
+
+Would generate:
+- AGENTS.md
+- docs/agent/repo-map.md
+- docs/agent/commands.md
+- docs/agent/risk-zones.md
+
+Agent readiness notes:
+- README mentions npm commands, but pnpm-lock.yaml suggests pnpm.
