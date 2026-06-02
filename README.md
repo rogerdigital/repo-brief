@@ -23,7 +23,7 @@ docs/agent/risk-zones.md
 RepoBrief scanned your codebase.
 
 Detected:
-- Package manager: pnpm
+- Package manager: unknown
 - Frameworks: Next.js
 
 Would generate:
@@ -33,7 +33,7 @@ Would generate:
 - docs/agent/risk-zones.md
 
 Agent readiness notes:
-- README mentions npm commands, but pnpm-lock.yaml suggests pnpm.
+- No AGENTS.md found.
 ```
 
 ## Commands
@@ -52,6 +52,16 @@ repo-brief fix --dry-run
 - `fix`: conservative generation mode. In v0.1 it only writes the same low-risk context files as `brief`.
 
 The binary is intentionally `repo-brief`, not `repo`. `repo brief`, `repo doctor`, and `repo fix` read well, but `repo` is too generic and conflicts with existing developer tooling.
+
+## Readiness Checks
+
+`doctor` and `brief` detect common issues that confuse humans and coding agents:
+
+- Missing `package.json` or `AGENTS.md`
+- Multiple package manager lockfiles in the same repo
+- README mentioning `npm` commands while a different lockfile is present
+- GitHub Actions workflows referencing undefined npm/pnpm scripts
+- Missing `test` or `build` scripts
 
 ## Local Development
 
