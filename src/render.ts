@@ -4,6 +4,17 @@ function listOrFallback(items: string[], fallback: string): string {
   return items.length > 0 ? items.join(", ") : fallback;
 }
 
+const VERIFICATION_SCRIPTS = ["test", "build", "lint", "verify"];
+
+function renderVerificationSection(brief: RepositoryBrief): string | null {
+  const entries = brief.commands
+    .filter((c) => VERIFICATION_SCRIPTS.includes(c.name))
+    .map((c) => `- ${c.name.charAt(0).toUpperCase() + c.name.slice(1)}: \`${c.command}\``);
+
+  if (entries.length === 0) return null;
+  return `## Verification\n\n${entries.join("\n")}`;
+}
+
 function renderCommandList(brief: RepositoryBrief): string {
   if (brief.commands.length === 0) {
     return "- No package scripts detected.";
@@ -23,6 +34,9 @@ function renderReadinessNotes(brief: RepositoryBrief): string {
 }
 
 export function renderAgentsMd(brief: RepositoryBrief): string {
+  const verification = renderVerificationSection(brief);
+  const verificationBlock = verification ? `\n${verification}\n` : "";
+
   return `# AGENTS.md
 
 ## Project Snapshot
@@ -34,7 +48,7 @@ export function renderAgentsMd(brief: RepositoryBrief): string {
 ## Common Commands
 
 ${brief.commands.length === 0 ? "- No package scripts detected." : brief.commands.map((command) => `- \`${command.command}\``).join("\n")}
-
+${verificationBlock}
 ## Agent Readiness Notes
 
 ${renderReadinessNotes(brief)}

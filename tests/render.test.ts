@@ -26,6 +26,47 @@ describe("renderers", () => {
     assert.match(output, /No AGENTS\.md found\./);
   });
 
+  test("renders AGENTS.md sections in correct order", () => {
+    const output = renderAgentsMd(brief);
+
+    const snapshotIdx = output.indexOf("## Project Snapshot");
+    const commandsIdx = output.indexOf("## Common Commands");
+    const readinessIdx = output.indexOf("## Agent Readiness Notes");
+    const guidelinesIdx = output.indexOf("## Working Guidelines");
+
+    assert.ok(snapshotIdx < commandsIdx, "Project Snapshot before Common Commands");
+    assert.ok(commandsIdx < readinessIdx, "Common Commands before Agent Readiness Notes");
+    assert.ok(readinessIdx < guidelinesIdx, "Agent Readiness Notes before Working Guidelines");
+  });
+
+  test("renders empty command fallback in AGENTS.md", () => {
+    const emptyBrief: RepositoryBrief = {
+      ...brief,
+      commands: [],
+    };
+    const output = renderAgentsMd(emptyBrief);
+
+    assert.match(output, /- No package scripts detected\./);
+  });
+
+  test("renders Verification section when test/build/lint/verify exist", () => {
+    const output = renderAgentsMd(brief);
+
+    assert.match(output, /## Verification/);
+    assert.match(output, /- Build: `pnpm build`/);
+    assert.match(output, /- Test: `pnpm test`/);
+  });
+
+  test("omits Verification section when no verification scripts exist", () => {
+    const noVerifyBrief: RepositoryBrief = {
+      ...brief,
+      commands: [{ name: "start", command: "pnpm start" }],
+    };
+    const output = renderAgentsMd(noVerifyBrief);
+
+    assert.equal(output.includes("## Verification"), false);
+  });
+
   test("renders a compact repo map", () => {
     const output = renderRepoMap(brief);
 
