@@ -29,7 +29,7 @@
 - Modify: `tests/cli.test.ts`
 - Modify: `README.md`
 
-- [ ] Confirm default command behavior.
+- [x] Confirm default command behavior.
 
 Run:
 
@@ -45,7 +45,7 @@ Would generate:
 - AGENTS.md
 ```
 
-- [ ] Add tests for explicit `brief`, `doctor`, and `fix --dry-run`.
+- [x] Add tests for explicit `brief`, `doctor`, and `fix --dry-run`.
 
 Test cases:
 
@@ -61,7 +61,7 @@ Expected:
 - `doctor` lists readiness notes and writes no files.
 - `fix --dry-run` says it is conservative and lists files it would generate.
 
-- [ ] Run tests and verify they fail before changing production code if the cases are not implemented.
+- [x] Run tests and verify they fail before changing production code if the cases are not implemented.
 
 Run:
 
@@ -69,9 +69,9 @@ Run:
 pnpm test
 ```
 
-- [ ] Update `src/cli.ts` only as needed to pass the new tests.
+- [x] Update `src/cli.ts` only as needed to pass the new tests.
 
-- [ ] Run verification.
+- [x] Run verification.
 
 ```bash
 pnpm test
@@ -85,7 +85,7 @@ Expected: all tests pass.
 - Modify: `src/scanner.ts`
 - Modify: `tests/scanner.test.ts`
 
-- [ ] Add failing tests for lockfile conflicts.
+- [x] Add failing tests for lockfile conflicts.
 
 Create a temp repo with both `pnpm-lock.yaml` and `package-lock.json`.
 
@@ -95,7 +95,7 @@ Expected readiness note:
 Multiple package manager lockfiles found.
 ```
 
-- [ ] Add failing tests for missing `package.json`.
+- [x] Add failing tests for missing `package.json`.
 
 Expected:
 
@@ -105,7 +105,7 @@ commands === []
 readinessNotes includes "No package.json found."
 ```
 
-- [ ] Add failing tests for GitHub Actions script mismatches.
+- [x] Add failing tests for GitHub Actions script mismatches.
 
 Create:
 
@@ -127,7 +127,7 @@ Expected readiness note:
 GitHub Actions references pnpm verify, but package.json has no verify script.
 ```
 
-- [ ] Implement the minimal scanner changes.
+- [x] Implement the minimal scanner changes.
 
 Implementation notes:
 
@@ -135,7 +135,7 @@ Implementation notes:
 - Do not add a YAML dependency yet.
 - Only inspect `.github/workflows/*.yml` and `.github/workflows/*.yaml`.
 
-- [ ] Run verification.
+- [x] Run verification.
 
 ```bash
 pnpm test
@@ -147,7 +147,7 @@ pnpm test
 - Modify: `src/render.ts`
 - Modify: `tests/render.test.ts`
 
-- [ ] Add failing tests for section order.
+- [x] Add failing tests for section order.
 
 Expected `AGENTS.md` section order:
 
@@ -159,7 +159,7 @@ Expected `AGENTS.md` section order:
 ## Working Guidelines
 ```
 
-- [ ] Add failing tests for empty command output.
+- [x] Add failing tests for empty command output.
 
 Expected:
 
@@ -167,7 +167,7 @@ Expected:
 - No package scripts detected.
 ```
 
-- [ ] Add a `Verification` section when a `test`, `build`, `lint`, or `verify` command exists.
+- [x] Add a `Verification` section when a `test`, `build`, `lint`, or `verify` command exists.
 
 Expected examples:
 
@@ -176,9 +176,9 @@ Expected examples:
 - Build: `pnpm build`
 ```
 
-- [ ] Implement renderer changes.
+- [x] Implement renderer changes.
 
-- [ ] Run verification.
+- [x] Run verification.
 
 ```bash
 pnpm test
@@ -191,7 +191,7 @@ pnpm test
 - Create: `.npmignore` if needed
 - Modify: `README.md`
 
-- [ ] Add repository metadata.
+- [x] Add repository metadata.
 
 Use:
 
@@ -202,7 +202,7 @@ Use:
 }
 ```
 
-- [ ] Add bugs and homepage metadata.
+- [x] Add bugs and homepage metadata.
 
 Use:
 
@@ -213,7 +213,7 @@ Use:
 "homepage": "https://github.com/rogerdigital/repo-brief#readme"
 ```
 
-- [ ] Run package dry run.
+- [x] Run package dry run.
 
 ```bash
 pnpm build
@@ -229,7 +229,7 @@ Expected: package includes `dist`, `README.md`, `LICENSE`, `examples`, and no `s
 - Create: `examples/fixtures/nextjs/README.md`
 - Modify: `examples/sample-output.txt`
 
-- [ ] Create a tiny fixture project.
+- [x] Create a tiny fixture project.
 
 `examples/fixtures/nextjs/package.json`:
 
@@ -247,15 +247,15 @@ Expected: package includes `dist`, `README.md`, `LICENSE`, `examples`, and no `s
 }
 ```
 
-- [ ] Run RepoBrief against the fixture.
+- [x] Run RepoBrief against the fixture.
 
 ```bash
 pnpm dev -- --dry-run --cwd examples/fixtures/nextjs
 ```
 
-- [ ] Copy the output into `examples/sample-output.txt`.
+- [x] Copy the output into `examples/sample-output.txt`.
 
-- [ ] Run verification.
+- [x] Run verification.
 
 ```bash
 pnpm test
@@ -266,14 +266,14 @@ pnpm test
 **Files:**
 - Inspect all changed files.
 
-- [ ] Run full verification.
+- [x] Run full verification.
 
 ```bash
 pnpm test
 git diff --check
 ```
 
-- [ ] Review README first screen.
+- [x] Review README first screen.
 
 Check that a visitor can answer within 10 seconds:
 
@@ -282,14 +282,14 @@ Check that a visitor can answer within 10 seconds:
 - What files does it generate?
 - Why does this help coding agents?
 
-- [ ] Commit.
+- [x] Commit.
 
 ```bash
 git add .
 git commit -m "feat: initialize repo-brief cli"
 ```
 
-- [ ] Push.
+- [x] Push.
 
 ```bash
 git push origin main
