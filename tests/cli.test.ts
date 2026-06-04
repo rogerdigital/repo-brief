@@ -3,7 +3,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { runCli } from "../src/cli.js";
+
+const execFileAsync = promisify(execFile);
 
 describe("runCli", () => {
   test("defaults to brief mode and prints generated files without writing in dry run", async () => {
@@ -82,5 +86,14 @@ describe("runCli", () => {
 
     assert.equal(exitCode, 0);
     assert.match(lines.join("\n"), /RepoBrief scanned your codebase\./);
+  });
+
+  test("runs when invoked through the built CLI entrypoint", async () => {
+    const root = await mkdtemp(join(tmpdir(), "repo-brief-cli-"));
+    await writeFile(join(root, "package.json"), JSON.stringify({ scripts: {} }), "utf8");
+
+    const { stdout } = await execFileAsync(process.execPath, ["dist/src/cli.js", "--dry-run", "--cwd", root]);
+
+    assert.match(stdout, /RepoBrief scanned your codebase\./);
   });
 });
