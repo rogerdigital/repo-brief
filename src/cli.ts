@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, realpath, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { scanRepository } from "./scanner.js";
 import { renderOutputFiles } from "./render.js";
@@ -112,6 +112,9 @@ export async function runCli(args: string[], io: CliIo = DEFAULT_IO): Promise<nu
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const modulePath = await realpath(new URL(import.meta.url));
+const invokedPath = process.argv[1] ? await realpath(process.argv[1]) : null;
+
+if (invokedPath === modulePath) {
   process.exitCode = await runCli(process.argv.slice(2));
 }
