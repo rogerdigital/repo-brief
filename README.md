@@ -5,7 +5,7 @@ Generate an AI-ready project brief for any codebase.
 RepoBrief scans a repository, detects the project stack and common commands, then writes lightweight context files that help humans and coding agents understand the repo before editing it.
 
 ```bash
-npx repo-brief --dry-run
+npx @rogerdigital/repo-brief --dry-run
 ```
 
 ## What It Generates

@@ -1,5 +1,5 @@
 {
-  "name": "repo-brief",
+  "name": "@rogerdigital/repo-brief",
   "version": "0.1.0",
   "description": "Generate an AI-ready project brief for any codebase.",
   "type": "module",
