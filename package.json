@@ -13,7 +13,7 @@
   },
   "homepage": "https://github.com/rogerdigital/repo-brief#readme",
   "bin": {
-    "repo-brief": "./dist/src/cli.js"
+    "repo-brief": "dist/src/cli.js"
   },
   "files": [
     "dist/src",

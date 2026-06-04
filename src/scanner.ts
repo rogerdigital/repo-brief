@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { CommandSummary, PackageManager, RepositoryBrief } from "./types.js";
 
 const SCRIPT_ORDER = ["dev", "build", "test", "lint", "typecheck", "check", "verify"];
+const PACKAGE_MANAGER_COMMANDS = new Set(["install", "add", "remove", "exec", "dlx", "ci"]);
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -143,7 +144,13 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
     const content = await readText(join(workflowsDir, file));
     if (!content) continue;
 
-    const pmPrefixes = ["pnpm ", "npm run ", "yarn ", "bun run "];
+    const scriptRunPatterns = [
+      { prefix: "pnpm", pattern: /^pnpm (?:run )?(\S+)/ },
+      { prefix: "npm run", pattern: /^npm run (\S+)/ },
+      { prefix: "yarn", pattern: /^yarn (?:run )?(\S+)/ },
+      { prefix: "bun run", pattern: /^bun run (\S+)/ },
+    ];
+
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
       const runValue = trimmed.startsWith("- run:")
@@ -153,15 +160,15 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
           : null;
       if (runValue === null) continue;
 
-      for (const prefix of pmPrefixes) {
-        const match = runValue.match(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\S+)`));
-        if (match) {
-          const scriptName = match[1];
-          if (!scriptNames.has(scriptName)) {
-            notes.push(
-              `GitHub Actions references ${prefix.trim()}${scriptName}, but package.json has no ${scriptName} script.`,
-            );
-          }
+      for (const { prefix, pattern } of scriptRunPatterns) {
+        const match = runValue.match(pattern);
+        if (!match) continue;
+
+        const scriptName = match[1];
+        if (PACKAGE_MANAGER_COMMANDS.has(scriptName)) continue;
+
+        if (!scriptNames.has(scriptName)) {
+          notes.push(`GitHub Actions references ${prefix} ${scriptName}, but package.json has no ${scriptName} script.`);
         }
       }
     }
