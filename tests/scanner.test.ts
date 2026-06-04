@@ -99,4 +99,27 @@ describe("scanRepository", () => {
       ),
     );
   });
+
+  test("ignores package manager commands in GitHub Actions", async () => {
+    const root = await createRepo({
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run", verify: "npm test" } }),
+      ".github/workflows/ci.yml": [
+        "name: CI",
+        "on: [push]",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: pnpm install --frozen-lockfile",
+        "      - run: pnpm verify",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.equal(
+      result.readinessNotes.some((n) => n.includes("install") && n.includes("package.json has no install script")),
+      false,
+    );
+  });
 });
