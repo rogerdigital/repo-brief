@@ -93,6 +93,7 @@ async function detectReadinessNotes(
   packageManager: PackageManager,
   readme: string | null,
   commands: CommandSummary[],
+  packageJson: PackageJson,
 ): Promise<string[]> {
   const notes: string[] = [];
 
@@ -103,6 +104,9 @@ async function detectReadinessNotes(
   if (hasMultipleLockfiles(root, files)) {
     notes.push("Multiple package manager lockfiles found.");
   }
+
+  const fieldMismatch = detectPackageManagerFieldMismatch(packageJson, packageManager);
+  if (fieldMismatch) notes.push(fieldMismatch);
 
   if (!files.has(join(root, "AGENTS.md"))) {
     notes.push("No AGENTS.md found.");
@@ -125,6 +129,21 @@ async function detectReadinessNotes(
   notes.push(...ciMismatches);
 
   return notes;
+}
+
+function detectPackageManagerFieldMismatch(packageJson: PackageJson, lockfileManager: PackageManager): string | null {
+  const field = packageJson.packageManager;
+  if (!field) return null;
+
+  const match = field.match(/^(npm|pnpm|yarn|bun)@/);
+  if (!match) return null;
+
+  const declared = match[1] as PackageManager;
+  if (declared !== lockfileManager && lockfileManager !== "unknown") {
+    return `packageManager field declares ${declared}, but lockfile suggests ${lockfileManager}.`;
+  }
+
+  return null;
 }
 
 function detectReadmeCommandMismatch(packageManager: PackageManager, readme: string): string | null {
@@ -215,6 +234,7 @@ interface PackageJson {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  packageManager?: string;
 }
 
 function parsePackageJson(content: string | null): PackageJson {
@@ -258,7 +278,7 @@ export async function scanRepository(root: string): Promise<RepositoryBrief> {
     packageManager: effectivePackageManager,
     frameworks: detectFrameworks(packageJson),
     commands,
-    readinessNotes: await detectReadinessNotes(root, files, effectivePackageManager, readme, commands),
+    readinessNotes: await detectReadinessNotes(root, files, effectivePackageManager, readme, commands, packageJson),
     generatedAt: new Date().toISOString(),
   };
 }

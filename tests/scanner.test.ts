@@ -133,6 +133,36 @@ describe("scanRepository", () => {
     ));
   });
 
+  test("reports packageManager field mismatch with lockfile", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({
+        packageManager: "yarn@4.0.0",
+        scripts: { test: "vitest run" },
+      }),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "packageManager field declares yarn, but lockfile suggests pnpm.",
+    ));
+  });
+
+  test("does not report mismatch when packageManager field matches lockfile", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({
+        packageManager: "pnpm@9.0.0",
+        scripts: { test: "vitest run" },
+      }),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(!result.readinessNotes.some((n) => n.includes("packageManager field")));
+  });
+
   test("reports GitHub Actions script mismatch", async () => {
     const root = await createRepo({
       "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
