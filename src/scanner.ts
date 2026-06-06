@@ -120,6 +120,12 @@ async function detectReadinessNotes(
     notes.push("No build script found in package.json.");
   }
 
+  const lintNotes = await detectLintConfigNotes(root, commands);
+  notes.push(...lintNotes);
+
+  const typecheckNotes = await detectTypecheckNote(root, commands);
+  notes.push(...typecheckNotes);
+
   if (readme) {
     const readmeMismatch = detectReadmeCommandMismatch(packageManager, readme);
     if (readmeMismatch) notes.push(readmeMismatch);
@@ -129,6 +135,39 @@ async function detectReadinessNotes(
   notes.push(...ciMismatches);
 
   return notes;
+}
+
+const ESLINT_CONFIG_FILES = [
+  ".eslintrc",
+  ".eslintrc.json",
+  ".eslintrc.yml",
+  ".eslintrc.yaml",
+  ".eslintrc.js",
+  ".eslintrc.cjs",
+  ".eslintrc.mjs",
+  "eslint.config.js",
+  "eslint.config.mjs",
+  "eslint.config.cjs",
+  "eslint.config.ts",
+];
+
+async function detectLintConfigNotes(root: string, commands: CommandSummary[]): Promise<string[]> {
+  if (commands.some((c) => c.name === "lint")) return [];
+
+  const hasConfig = await Promise.all(
+    ESLINT_CONFIG_FILES.map((f) => exists(join(root, f))),
+  );
+  if (!hasConfig.some(Boolean)) return [];
+
+  return ["ESLint config found but no lint script in package.json. Consider adding one."];
+}
+
+async function detectTypecheckNote(root: string, commands: CommandSummary[]): Promise<string[]> {
+  if (commands.some((c) => c.name === "typecheck" || c.name === "check")) return [];
+
+  if (!(await exists(join(root, "tsconfig.json")))) return [];
+
+  return ["tsconfig.json found but no typecheck script in package.json. Consider adding one."];
 }
 
 function detectPackageManagerFieldMismatch(packageJson: PackageJson, lockfileManager: PackageManager): string | null {

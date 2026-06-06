@@ -252,4 +252,52 @@ describe("scanRepository", () => {
 
     assert.ok(!result.readinessNotes.some((n) => n.includes("GitHub Actions uses")));
   });
+
+  test("suggests lint script when ESLint config exists", async () => {
+    const root = await createRepo({
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      ".eslintrc.json": "{}",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("ESLint config found") && n.includes("no lint script"),
+    ));
+  });
+
+  test("does not suggest lint script when lint script exists", async () => {
+    const root = await createRepo({
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run", lint: "eslint ." } }),
+      ".eslintrc.json": "{}",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(!result.readinessNotes.some((n) => n.includes("ESLint config")));
+  });
+
+  test("suggests typecheck script when tsconfig.json exists", async () => {
+    const root = await createRepo({
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      "tsconfig.json": "{}",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("tsconfig.json found") && n.includes("no typecheck script"),
+    ));
+  });
+
+  test("does not suggest typecheck when typecheck or check script exists", async () => {
+    const root = await createRepo({
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run", typecheck: "tsc --noEmit" } }),
+      "tsconfig.json": "{}",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(!result.readinessNotes.some((n) => n.includes("tsconfig.json found")));
+  });
 });
