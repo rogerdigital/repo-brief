@@ -125,7 +125,7 @@ async function detectReadinessNotes(
     if (readmeMismatch) notes.push(readmeMismatch);
   }
 
-  const ciMismatches = await detectCiScriptMismatches(root, commands);
+  const ciMismatches = await detectCiScriptMismatches(root, commands, packageManager);
   notes.push(...ciMismatches);
 
   return notes;
@@ -179,7 +179,7 @@ function detectReadmeCommandMismatch(packageManager: PackageManager, readme: str
   return null;
 }
 
-async function detectCiScriptMismatches(root: string, commands: CommandSummary[]): Promise<string[]> {
+async function detectCiScriptMismatches(root: string, commands: CommandSummary[], packageManager: PackageManager): Promise<string[]> {
   const notes: string[] = [];
   const workflowsDir = join(root, ".github", "workflows");
 
@@ -198,11 +198,12 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
     if (!content) continue;
 
     const scriptRunPatterns = [
-      { prefix: "pnpm", pattern: /^pnpm (?:run )?(\S+)/ },
-      { prefix: "npm run", pattern: /^npm run (\S+)/ },
-      { prefix: "yarn", pattern: /^yarn (?:run )?(\S+)/ },
-      { prefix: "bun run", pattern: /^bun run (\S+)/ },
+      { prefix: "pnpm", pm: "pnpm" as PackageManager, pattern: /^pnpm (?:run )?(\S+)/ },
+      { prefix: "npm run", pm: "npm" as PackageManager, pattern: /^npm run (\S+)/ },
+      { prefix: "yarn", pm: "yarn" as PackageManager, pattern: /^yarn (?:run )?(\S+)/ },
+      { prefix: "bun run", pm: "bun" as PackageManager, pattern: /^bun run (\S+)/ },
     ];
+    const seenWrongPm = new Set<PackageManager>();
 
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
@@ -213,7 +214,7 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
           : null;
       if (runValue === null) continue;
 
-      for (const { prefix, pattern } of scriptRunPatterns) {
+      for (const { prefix, pm: ciPm, pattern } of scriptRunPatterns) {
         const match = runValue.match(pattern);
         if (!match) continue;
 
@@ -222,6 +223,17 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
 
         if (!scriptNames.has(scriptName)) {
           notes.push(`GitHub Actions references ${prefix} ${scriptName}, but package.json has no ${scriptName} script.`);
+        }
+
+        if (
+          ciPm !== packageManager &&
+          packageManager !== "unknown" &&
+          !seenWrongPm.has(ciPm)
+        ) {
+          seenWrongPm.add(ciPm);
+          notes.push(
+            `GitHub Actions uses ${ciPm}, but lockfile suggests ${packageManager}.`,
+          );
         }
       }
     }

@@ -208,4 +208,48 @@ describe("scanRepository", () => {
       false,
     );
   });
+
+  test("reports CI package manager mismatch with lockfile", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      ".github/workflows/ci.yml": [
+        "name: CI",
+        "on: [push]",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: npm run build",
+        "      - run: npm run test",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("GitHub Actions uses npm") && n.includes("lockfile suggests pnpm"),
+    ));
+  });
+
+  test("does not report CI mismatch when package managers match", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      ".github/workflows/ci.yml": [
+        "name: CI",
+        "on: [push]",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: pnpm build",
+        "      - run: pnpm test",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(!result.readinessNotes.some((n) => n.includes("GitHub Actions uses")));
+  });
 });
