@@ -77,6 +77,92 @@ describe("scanRepository", () => {
     assert.ok(result.readinessNotes.includes("No package.json found."));
   });
 
+  test("reports README mismatch for yarn", async () => {
+    const root = await createRepo({
+      "yarn.lock": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": "Run `npm test` before opening a PR.\n",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "README mentions npm commands, but yarn.lock suggests yarn.",
+    ));
+  });
+
+  test("reports README mismatch for bun", async () => {
+    const root = await createRepo({
+      "bun.lock": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": "Run `npm test` before opening a PR.\n",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "README mentions npm commands, but bun.lock suggests bun.",
+    ));
+  });
+
+  test("reports README mismatch when npm detected but pnpm referenced", async () => {
+    const root = await createRepo({
+      "package-lock.json": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": "Run `pnpm test` before opening a PR.\n",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "README mentions pnpm commands, but package-lock.json suggests npm.",
+    ));
+  });
+
+  test("reports README mismatch when npm detected but yarn referenced", async () => {
+    const root = await createRepo({
+      "package-lock.json": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": "Run `yarn test` before opening a PR.\n",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "README mentions yarn commands, but package-lock.json suggests npm.",
+    ));
+  });
+
+  test("reports packageManager field mismatch with lockfile", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({
+        packageManager: "yarn@4.0.0",
+        scripts: { test: "vitest run" },
+      }),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "packageManager field declares yarn, but lockfile suggests pnpm.",
+    ));
+  });
+
+  test("does not report mismatch when packageManager field matches lockfile", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({
+        packageManager: "pnpm@9.0.0",
+        scripts: { test: "vitest run" },
+      }),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(!result.readinessNotes.some((n) => n.includes("packageManager field")));
+  });
+
   test("reports GitHub Actions script mismatch", async () => {
     const root = await createRepo({
       "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
@@ -121,5 +207,97 @@ describe("scanRepository", () => {
       result.readinessNotes.some((n) => n.includes("install") && n.includes("package.json has no install script")),
       false,
     );
+  });
+
+  test("reports CI package manager mismatch with lockfile", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      ".github/workflows/ci.yml": [
+        "name: CI",
+        "on: [push]",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: npm run build",
+        "      - run: npm run test",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("GitHub Actions uses npm") && n.includes("lockfile suggests pnpm"),
+    ));
+  });
+
+  test("does not report CI mismatch when package managers match", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      ".github/workflows/ci.yml": [
+        "name: CI",
+        "on: [push]",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: pnpm build",
+        "      - run: pnpm test",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(!result.readinessNotes.some((n) => n.includes("GitHub Actions uses")));
+  });
+
+  test("suggests lint script when ESLint config exists", async () => {
+    const root = await createRepo({
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      ".eslintrc.json": "{}",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("ESLint config found") && n.includes("no lint script"),
+    ));
+  });
+
+  test("does not suggest lint script when lint script exists", async () => {
+    const root = await createRepo({
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run", lint: "eslint ." } }),
+      ".eslintrc.json": "{}",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(!result.readinessNotes.some((n) => n.includes("ESLint config")));
+  });
+
+  test("suggests typecheck script when tsconfig.json exists", async () => {
+    const root = await createRepo({
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      "tsconfig.json": "{}",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("tsconfig.json found") && n.includes("no typecheck script"),
+    ));
+  });
+
+  test("does not suggest typecheck when typecheck or check script exists", async () => {
+    const root = await createRepo({
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run", typecheck: "tsc --noEmit" } }),
+      "tsconfig.json": "{}",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(!result.readinessNotes.some((n) => n.includes("tsconfig.json found")));
   });
 });

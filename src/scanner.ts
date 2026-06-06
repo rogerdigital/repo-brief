@@ -93,6 +93,7 @@ async function detectReadinessNotes(
   packageManager: PackageManager,
   readme: string | null,
   commands: CommandSummary[],
+  packageJson: PackageJson,
 ): Promise<string[]> {
   const notes: string[] = [];
 
@@ -103,6 +104,9 @@ async function detectReadinessNotes(
   if (hasMultipleLockfiles(root, files)) {
     notes.push("Multiple package manager lockfiles found.");
   }
+
+  const fieldMismatch = detectPackageManagerFieldMismatch(packageJson, packageManager);
+  if (fieldMismatch) notes.push(fieldMismatch);
 
   if (!files.has(join(root, "AGENTS.md"))) {
     notes.push("No AGENTS.md found.");
@@ -116,17 +120,105 @@ async function detectReadinessNotes(
     notes.push("No build script found in package.json.");
   }
 
-  if (packageManager === "pnpm" && readme && /\bnpm (run )?(test|build|lint|dev)\b/.test(readme)) {
-    notes.push("README mentions npm commands, but pnpm-lock.yaml suggests pnpm.");
+  const lintNotes = await detectLintConfigNotes(root, commands);
+  notes.push(...lintNotes);
+
+  const typecheckNotes = await detectTypecheckNote(root, commands);
+  notes.push(...typecheckNotes);
+
+  if (readme) {
+    const readmeMismatch = detectReadmeCommandMismatch(packageManager, readme);
+    if (readmeMismatch) notes.push(readmeMismatch);
   }
 
-  const ciMismatches = await detectCiScriptMismatches(root, commands);
+  const ciMismatches = await detectCiScriptMismatches(root, commands, packageManager);
   notes.push(...ciMismatches);
 
   return notes;
 }
 
-async function detectCiScriptMismatches(root: string, commands: CommandSummary[]): Promise<string[]> {
+const ESLINT_CONFIG_FILES = [
+  ".eslintrc",
+  ".eslintrc.json",
+  ".eslintrc.yml",
+  ".eslintrc.yaml",
+  ".eslintrc.js",
+  ".eslintrc.cjs",
+  ".eslintrc.mjs",
+  "eslint.config.js",
+  "eslint.config.mjs",
+  "eslint.config.cjs",
+  "eslint.config.ts",
+];
+
+async function detectLintConfigNotes(root: string, commands: CommandSummary[]): Promise<string[]> {
+  if (commands.some((c) => c.name === "lint")) return [];
+
+  const hasConfig = await Promise.all(
+    ESLINT_CONFIG_FILES.map((f) => exists(join(root, f))),
+  );
+  if (!hasConfig.some(Boolean)) return [];
+
+  return ["ESLint config found but no lint script in package.json. Consider adding one."];
+}
+
+async function detectTypecheckNote(root: string, commands: CommandSummary[]): Promise<string[]> {
+  if (commands.some((c) => c.name === "typecheck" || c.name === "check")) return [];
+
+  if (!(await exists(join(root, "tsconfig.json")))) return [];
+
+  return ["tsconfig.json found but no typecheck script in package.json. Consider adding one."];
+}
+
+function detectPackageManagerFieldMismatch(packageJson: PackageJson, lockfileManager: PackageManager): string | null {
+  const field = packageJson.packageManager;
+  if (!field) return null;
+
+  const match = field.match(/^(npm|pnpm|yarn|bun)@/);
+  if (!match) return null;
+
+  const declared = match[1] as PackageManager;
+  if (declared !== lockfileManager && lockfileManager !== "unknown") {
+    return `packageManager field declares ${declared}, but lockfile suggests ${lockfileManager}.`;
+  }
+
+  return null;
+}
+
+function detectReadmeCommandMismatch(packageManager: PackageManager, readme: string): string | null {
+  const npmRe = /\bnpm (run )?(test|build|lint|dev)\b/;
+  const pnpmRe = /\bpnpm (run )?(test|build|lint|dev)\b/;
+  const yarnRe = /\byarn (test|build|lint|dev)\b/;
+  const bunRe = /\bbun (run )?(test|build|lint|dev)\b/;
+
+  const lockfileName: Record<PackageManager, string> = {
+    pnpm: "pnpm-lock.yaml",
+    yarn: "yarn.lock",
+    bun: "bun.lock",
+    npm: "package-lock.json",
+    unknown: "lockfile",
+  };
+
+  if (packageManager !== "npm" && packageManager !== "unknown" && npmRe.test(readme)) {
+    return `README mentions npm commands, but ${lockfileName[packageManager]} suggests ${packageManager}.`;
+  }
+
+  if (packageManager === "npm") {
+    if (pnpmRe.test(readme)) {
+      return "README mentions pnpm commands, but package-lock.json suggests npm.";
+    }
+    if (yarnRe.test(readme)) {
+      return "README mentions yarn commands, but package-lock.json suggests npm.";
+    }
+    if (bunRe.test(readme)) {
+      return "README mentions bun commands, but package-lock.json suggests npm.";
+    }
+  }
+
+  return null;
+}
+
+async function detectCiScriptMismatches(root: string, commands: CommandSummary[], packageManager: PackageManager): Promise<string[]> {
   const notes: string[] = [];
   const workflowsDir = join(root, ".github", "workflows");
 
@@ -145,11 +237,12 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
     if (!content) continue;
 
     const scriptRunPatterns = [
-      { prefix: "pnpm", pattern: /^pnpm (?:run )?(\S+)/ },
-      { prefix: "npm run", pattern: /^npm run (\S+)/ },
-      { prefix: "yarn", pattern: /^yarn (?:run )?(\S+)/ },
-      { prefix: "bun run", pattern: /^bun run (\S+)/ },
+      { prefix: "pnpm", pm: "pnpm" as PackageManager, pattern: /^pnpm (?:run )?(\S+)/ },
+      { prefix: "npm run", pm: "npm" as PackageManager, pattern: /^npm run (\S+)/ },
+      { prefix: "yarn", pm: "yarn" as PackageManager, pattern: /^yarn (?:run )?(\S+)/ },
+      { prefix: "bun run", pm: "bun" as PackageManager, pattern: /^bun run (\S+)/ },
     ];
+    const seenWrongPm = new Set<PackageManager>();
 
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
@@ -160,7 +253,7 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
           : null;
       if (runValue === null) continue;
 
-      for (const { prefix, pattern } of scriptRunPatterns) {
+      for (const { prefix, pm: ciPm, pattern } of scriptRunPatterns) {
         const match = runValue.match(pattern);
         if (!match) continue;
 
@@ -169,6 +262,17 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
 
         if (!scriptNames.has(scriptName)) {
           notes.push(`GitHub Actions references ${prefix} ${scriptName}, but package.json has no ${scriptName} script.`);
+        }
+
+        if (
+          ciPm !== packageManager &&
+          packageManager !== "unknown" &&
+          !seenWrongPm.has(ciPm)
+        ) {
+          seenWrongPm.add(ciPm);
+          notes.push(
+            `GitHub Actions uses ${ciPm}, but lockfile suggests ${packageManager}.`,
+          );
         }
       }
     }
@@ -181,6 +285,7 @@ interface PackageJson {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  packageManager?: string;
 }
 
 function parsePackageJson(content: string | null): PackageJson {
@@ -224,7 +329,7 @@ export async function scanRepository(root: string): Promise<RepositoryBrief> {
     packageManager: effectivePackageManager,
     frameworks: detectFrameworks(packageJson),
     commands,
-    readinessNotes: await detectReadinessNotes(root, files, effectivePackageManager, readme, commands),
+    readinessNotes: await detectReadinessNotes(root, files, effectivePackageManager, readme, commands, packageJson),
     generatedAt: new Date().toISOString(),
   };
 }
