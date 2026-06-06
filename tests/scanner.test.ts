@@ -77,6 +77,62 @@ describe("scanRepository", () => {
     assert.ok(result.readinessNotes.includes("No package.json found."));
   });
 
+  test("reports README mismatch for yarn", async () => {
+    const root = await createRepo({
+      "yarn.lock": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": "Run `npm test` before opening a PR.\n",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "README mentions npm commands, but yarn.lock suggests yarn.",
+    ));
+  });
+
+  test("reports README mismatch for bun", async () => {
+    const root = await createRepo({
+      "bun.lock": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": "Run `npm test` before opening a PR.\n",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "README mentions npm commands, but bun.lock suggests bun.",
+    ));
+  });
+
+  test("reports README mismatch when npm detected but pnpm referenced", async () => {
+    const root = await createRepo({
+      "package-lock.json": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": "Run `pnpm test` before opening a PR.\n",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "README mentions pnpm commands, but package-lock.json suggests npm.",
+    ));
+  });
+
+  test("reports README mismatch when npm detected but yarn referenced", async () => {
+    const root = await createRepo({
+      "package-lock.json": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": "Run `yarn test` before opening a PR.\n",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "README mentions yarn commands, but package-lock.json suggests npm.",
+    ));
+  });
+
   test("reports GitHub Actions script mismatch", async () => {
     const root = await createRepo({
       "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),

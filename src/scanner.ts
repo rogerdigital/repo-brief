@@ -116,14 +116,48 @@ async function detectReadinessNotes(
     notes.push("No build script found in package.json.");
   }
 
-  if (packageManager === "pnpm" && readme && /\bnpm (run )?(test|build|lint|dev)\b/.test(readme)) {
-    notes.push("README mentions npm commands, but pnpm-lock.yaml suggests pnpm.");
+  if (readme) {
+    const readmeMismatch = detectReadmeCommandMismatch(packageManager, readme);
+    if (readmeMismatch) notes.push(readmeMismatch);
   }
 
   const ciMismatches = await detectCiScriptMismatches(root, commands);
   notes.push(...ciMismatches);
 
   return notes;
+}
+
+function detectReadmeCommandMismatch(packageManager: PackageManager, readme: string): string | null {
+  const npmRe = /\bnpm (run )?(test|build|lint|dev)\b/;
+  const pnpmRe = /\bpnpm (run )?(test|build|lint|dev)\b/;
+  const yarnRe = /\byarn (test|build|lint|dev)\b/;
+  const bunRe = /\bbun (run )?(test|build|lint|dev)\b/;
+
+  const lockfileName: Record<PackageManager, string> = {
+    pnpm: "pnpm-lock.yaml",
+    yarn: "yarn.lock",
+    bun: "bun.lock",
+    npm: "package-lock.json",
+    unknown: "lockfile",
+  };
+
+  if (packageManager !== "npm" && packageManager !== "unknown" && npmRe.test(readme)) {
+    return `README mentions npm commands, but ${lockfileName[packageManager]} suggests ${packageManager}.`;
+  }
+
+  if (packageManager === "npm") {
+    if (pnpmRe.test(readme)) {
+      return "README mentions pnpm commands, but package-lock.json suggests npm.";
+    }
+    if (yarnRe.test(readme)) {
+      return "README mentions yarn commands, but package-lock.json suggests npm.";
+    }
+    if (bunRe.test(readme)) {
+      return "README mentions bun commands, but package-lock.json suggests npm.";
+    }
+  }
+
+  return null;
 }
 
 async function detectCiScriptMismatches(root: string, commands: CommandSummary[]): Promise<string[]> {
