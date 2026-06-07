@@ -232,16 +232,17 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
   const scriptNames = new Set(commands.map((c) => c.name));
   const workflowFiles = entries.filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
 
+  const scriptRunPatterns = [
+    { prefix: "pnpm", pm: "pnpm" as PackageManager, pattern: /^pnpm (?:run )?(\S+)/ },
+    { prefix: "npm run", pm: "npm" as PackageManager, pattern: /^npm run (\S+)/ },
+    { prefix: "yarn", pm: "yarn" as PackageManager, pattern: /^yarn (?:run )?(\S+)/ },
+    { prefix: "bun run", pm: "bun" as PackageManager, pattern: /^bun run (\S+)/ },
+  ];
+
   for (const file of workflowFiles) {
     const content = await readText(join(workflowsDir, file));
     if (!content) continue;
 
-    const scriptRunPatterns = [
-      { prefix: "pnpm", pm: "pnpm" as PackageManager, pattern: /^pnpm (?:run )?(\S+)/ },
-      { prefix: "npm run", pm: "npm" as PackageManager, pattern: /^npm run (\S+)/ },
-      { prefix: "yarn", pm: "yarn" as PackageManager, pattern: /^yarn (?:run )?(\S+)/ },
-      { prefix: "bun run", pm: "bun" as PackageManager, pattern: /^bun run (\S+)/ },
-    ];
     const seenWrongPm = new Set<PackageManager>();
 
     for (const line of content.split("\n")) {
