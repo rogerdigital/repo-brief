@@ -11,7 +11,13 @@ export interface RepositoryBrief {
   frameworks: string[];
   commands: CommandSummary[];
   readinessNotes: string[];
+  structure: RepositoryStructure;
   generatedAt: string;
+}
+
+export interface RepositoryStructure {
+  directories: string[];
+  ciWorkflows: string[];
 }
 
 export interface OutputFile {

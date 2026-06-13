@@ -1,9 +1,10 @@
 import { access, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { CommandSummary, PackageManager, RepositoryBrief } from "./types.js";
+import type { CommandSummary, PackageManager, RepositoryBrief, RepositoryStructure } from "./types.js";
 
 const SCRIPT_ORDER = ["dev", "build", "test", "lint", "typecheck", "check", "verify"];
 const PACKAGE_MANAGER_COMMANDS = new Set(["install", "add", "remove", "exec", "dlx", "ci"]);
+const STRUCTURE_DIRECTORIES = ["app", "pages", "src", "packages", "apps", "tests", "test", "docs"];
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -129,6 +130,9 @@ async function detectReadinessNotes(
   if (readme) {
     const readmeMismatch = detectReadmeCommandMismatch(packageManager, readme);
     if (readmeMismatch) notes.push(readmeMismatch);
+
+    const readmeScriptMismatches = detectReadmeScriptMismatches(readme, commands);
+    notes.push(...readmeScriptMismatches);
   }
 
   const ciMismatches = await detectCiScriptMismatches(root, commands, packageManager);
@@ -218,6 +222,27 @@ function detectReadmeCommandMismatch(packageManager: PackageManager, readme: str
   return null;
 }
 
+function detectReadmeScriptMismatches(readme: string, commands: CommandSummary[]): string[] {
+  const notes: string[] = [];
+  const scriptNames = new Set(commands.map((command) => command.name));
+  const seen = new Set<string>();
+  const commandRe = /\b(pnpm|yarn) (?:run )?([a-zA-Z0-9:_-]+)\b|\bnpm run ([a-zA-Z0-9:_-]+)\b|\bnpm (test|build|lint|dev|verify|typecheck|check)\b|\bbun run ([a-zA-Z0-9:_-]+)\b/g;
+
+  for (const match of readme.matchAll(commandRe)) {
+    const packageManager = match[1] ?? (match[3] || match[4] ? "npm" : "bun");
+    const scriptName = match[2] ?? match[3] ?? match[4] ?? match[5];
+    if (!scriptName || PACKAGE_MANAGER_COMMANDS.has(scriptName)) continue;
+    if (scriptNames.has(scriptName)) continue;
+
+    const key = `${packageManager}:${scriptName}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    notes.push(`README references ${packageManager} ${scriptName}, but package.json has no ${scriptName} script.`);
+  }
+
+  return notes;
+}
+
 async function detectCiScriptMismatches(root: string, commands: CommandSummary[], packageManager: PackageManager): Promise<string[]> {
   const notes: string[] = [];
   const workflowsDir = join(root, ".github", "workflows");
@@ -282,6 +307,38 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
   return notes;
 }
 
+async function detectStructure(root: string): Promise<RepositoryStructure> {
+  const directoryChecks = await Promise.all(
+    STRUCTURE_DIRECTORIES.map(async (directory) => ({
+      directory,
+      exists: await exists(join(root, directory)),
+    })),
+  );
+
+  return {
+    directories: directoryChecks
+      .filter((check) => check.exists)
+      .map((check) => check.directory),
+    ciWorkflows: await detectCiWorkflowFiles(root),
+  };
+}
+
+async function detectCiWorkflowFiles(root: string): Promise<string[]> {
+  const workflowsDir = join(root, ".github", "workflows");
+
+  let entries: string[];
+  try {
+    entries = await readdir(workflowsDir);
+  } catch {
+    return [];
+  }
+
+  return entries
+    .filter((file) => file.endsWith(".yml") || file.endsWith(".yaml"))
+    .sort()
+    .map((file) => `.github/workflows/${file}`);
+}
+
 interface PackageJson {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
@@ -331,6 +388,7 @@ export async function scanRepository(root: string): Promise<RepositoryBrief> {
     frameworks: detectFrameworks(packageJson),
     commands,
     readinessNotes: await detectReadinessNotes(root, files, effectivePackageManager, readme, commands, packageJson),
+    structure: await detectStructure(root),
     generatedAt: new Date().toISOString(),
   };
 }

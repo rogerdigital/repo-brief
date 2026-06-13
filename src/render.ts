@@ -25,6 +25,10 @@ function renderCommandList(brief: RepositoryBrief): string {
     .join("\n");
 }
 
+function renderInlineCodeList(items: string[], fallback: string): string {
+  return items.length > 0 ? items.map((item) => `\`${item}\``).join(", ") : fallback;
+}
+
 function renderReadinessNotes(brief: RepositoryBrief): string {
   if (brief.readinessNotes.length === 0) {
     return "- No obvious agent readiness issues detected.";
@@ -69,6 +73,11 @@ export function renderRepoMap(brief: RepositoryBrief): string {
 - Root: \`${brief.root}\`
 - Package manager: ${brief.packageManager}
 - Frameworks: ${listOrFallback(brief.frameworks, "Not detected")}
+
+## Structure
+
+- Directories: ${renderInlineCodeList(brief.structure.directories, "Not detected")}
+- CI workflows: ${renderInlineCodeList(brief.structure.ciWorkflows, "Not detected")}
 
 ## Commands
 

@@ -12,6 +12,10 @@ const brief: RepositoryBrief = {
     { name: "test", command: "pnpm test" },
   ],
   readinessNotes: ["No AGENTS.md found."],
+  structure: {
+    directories: ["src", "tests", "docs"],
+    ciWorkflows: [".github/workflows/ci.yml"],
+  },
   generatedAt: "2026-06-01T00:00:00.000Z",
 };
 
@@ -73,5 +77,13 @@ describe("renderers", () => {
     assert.match(output, /# Repo Map/);
     assert.match(output, /- Frameworks: Next\.js/);
     assert.match(output, /- build: `pnpm build`/);
+  });
+
+  test("renders detected structure in repo map", () => {
+    const output = renderRepoMap(brief);
+
+    assert.match(output, /## Structure/);
+    assert.match(output, /- Directories: `src`, `tests`, `docs`/);
+    assert.match(output, /- CI workflows: `.github\/workflows\/ci.yml`/);
   });
 });
