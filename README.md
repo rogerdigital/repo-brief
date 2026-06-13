@@ -82,6 +82,8 @@ pnpm test
 pnpm dev -- --dry-run
 ```
 
+Fixture projects live under `examples/fixtures`. They cover package-manager detection, no-package metadata, and shallow monorepo structure signals.
+
 ## Product Direction
 
 RepoBrief starts as a brief generator, not a broad code quality platform.

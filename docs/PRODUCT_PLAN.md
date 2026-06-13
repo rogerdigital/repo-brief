@@ -42,6 +42,7 @@ Do not use `repo brief`, `repo doctor`, or `repo fix` as the primary interface. 
 - Detect CI package-manager usage that conflicts with the detected lockfile.
 - Detect lint and typecheck config files without matching package scripts.
 - Add shallow repository structure signals to the generated repo map.
+- Maintain fixture coverage for npm, pnpm, yarn, bun, no-package metadata, and monorepo layouts.
 - Detect missing verification commands.
 - Keep checks explainable and deterministic.
 
