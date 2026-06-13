@@ -60,8 +60,19 @@ The binary is intentionally `repo-brief`, not `repo`. `repo brief`, `repo doctor
 - Missing `package.json` or `AGENTS.md`
 - Multiple package manager lockfiles in the same repo
 - README mentioning `npm` commands while a different lockfile is present
+- README referencing package scripts that do not exist
 - GitHub Actions workflows referencing undefined npm/pnpm scripts
+- GitHub Actions workflows using a package manager that conflicts with the lockfile
 - Missing `test` or `build` scripts
+- ESLint or TypeScript config without a matching package script
+
+## Repo Map Signals
+
+`docs/agent/repo-map.md` summarizes shallow repository structure:
+
+- Common project directories such as `src`, `app`, `packages`, `apps`, `tests`, and `docs`
+- GitHub Actions workflow files under `.github/workflows`
+- Detected package manager, frameworks, commands, and readiness notes
 
 ## Local Development
 
@@ -70,6 +81,8 @@ pnpm install
 pnpm test
 pnpm dev -- --dry-run
 ```
+
+Fixture projects live under `examples/fixtures`. They cover package-manager detection, no-package metadata, and shallow monorepo structure signals.
 
 ## Product Direction
 

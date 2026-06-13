@@ -133,6 +133,25 @@ describe("scanRepository", () => {
     ));
   });
 
+  test("reports README scripts that are not defined in package.json", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": [
+        "# Demo",
+        "",
+        "Run `pnpm test` before opening a PR.",
+        "Run `pnpm verify` before publishing.",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "README references pnpm verify, but package.json has no verify script.",
+    ));
+  });
+
   test("reports packageManager field mismatch with lockfile", async () => {
     const root = await createRepo({
       "pnpm-lock.yaml": "",
@@ -299,5 +318,20 @@ describe("scanRepository", () => {
     const result = await scanRepository(root);
 
     assert.ok(!result.readinessNotes.some((n) => n.includes("tsconfig.json found")));
+  });
+
+  test("detects common project directories and GitHub workflow files", async () => {
+    const root = await createRepo({
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "node --test" } }),
+      "src/index.ts": "export {};",
+      "tests/index.test.ts": "import 'node:test';",
+      "docs/guide.md": "# Guide",
+      ".github/workflows/ci.yml": "name: CI\n",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.deepEqual(result.structure.directories, ["src", "tests", "docs"]);
+    assert.deepEqual(result.structure.ciWorkflows, [".github/workflows/ci.yml"]);
   });
 });
