@@ -48,9 +48,9 @@ Do not use `repo brief`, `repo doctor`, or `repo fix` as the primary interface. 
 
 ### v0.3: GitHub Action
 
-- Add an action that runs on PRs.
-- Report stale brief files.
-- Optionally open a patch with regenerated context files.
+- [x] Add an action that runs on PRs.
+- [x] Report stale brief files.
+- [ ] Optionally open a patch with regenerated context files.
 
 ### v0.4: MCP Server
 

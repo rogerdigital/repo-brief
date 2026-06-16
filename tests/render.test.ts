@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { renderAgentsMd, renderRepoMap } from "../src/render.js";
+import { renderAgentsMd, renderRepoMap, renderOutputFiles } from "../src/render.js";
 import type { RepositoryBrief } from "../src/types.js";
 
 const brief: RepositoryBrief = {
@@ -85,5 +85,18 @@ describe("renderers", () => {
     assert.match(output, /## Structure/);
     assert.match(output, /- Directories: `src`, `tests`, `docs`/);
     assert.match(output, /- CI workflows: `.github\/workflows\/ci.yml`/);
+  });
+
+  test("does not include Generated timestamp in AGENTS.md", () => {
+    const output = renderAgentsMd(brief);
+
+    assert.equal(output.includes("Generated:"), false);
+  });
+
+  test("renders identical output for the same brief (determinism)", () => {
+    const first = renderOutputFiles(brief).map((f) => `${f.path}\n${f.content}`);
+    const second = renderOutputFiles(brief).map((f) => `${f.path}\n${f.content}`);
+
+    assert.deepEqual(first, second);
   });
 });

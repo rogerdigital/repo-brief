@@ -47,7 +47,6 @@ export function renderAgentsMd(brief: RepositoryBrief): string {
 
 - Package manager: ${brief.packageManager}
 - Frameworks: ${listOrFallback(brief.frameworks, "Not detected")}
-- Generated: ${brief.generatedAt}
 
 ## Common Commands
 

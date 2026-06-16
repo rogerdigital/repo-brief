@@ -50,7 +50,7 @@ describe("runCli", () => {
     assert.match(output, /Agent readiness notes:/);
     // doctor should not list generated files
     assert.equal(output.includes("Would generate:"), false);
-    assert.equal(output.includes("Generated:"), false);
+    assert.equal(output.includes("Generated: <"), false);
   });
 
   test("fix --dry-run lists files it would generate", async () => {
@@ -95,5 +95,26 @@ describe("runCli", () => {
     const { stdout } = await execFileAsync(process.execPath, ["dist/src/cli.js", "--dry-run", "--cwd", root]);
 
     assert.match(stdout, /RepoBrief scanned your codebase\./);
+  });
+
+  test("prints Generated at timestamp in scan summary", async () => {
+    const root = await mkdtemp(join(tmpdir(), "repo-brief-cli-"));
+    await writeFile(
+      join(root, "package.json"),
+      JSON.stringify({ scripts: { test: "vitest run" } }, null, 2),
+      "utf8",
+    );
+
+    const lines: string[] = [];
+    const exitCode = await runCli(["--dry-run", "--cwd", root], {
+      stdout: (line) => lines.push(line),
+      stderr: () => {},
+    });
+
+    assert.equal(exitCode, 0);
+    assert.ok(
+      lines.some((l) => /^Generated at: /.test(l)),
+      `expected a "Generated at:" line, got: ${JSON.stringify(lines)}`,
+    );
   });
 });

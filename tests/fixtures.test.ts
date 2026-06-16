@@ -1,7 +1,9 @@
 import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { scanRepository } from "../src/scanner.js";
+import { renderOutputFiles } from "../src/render.js";
 
 const fixturesRoot = join(process.cwd(), "examples", "fixtures");
 
@@ -40,5 +42,21 @@ describe("example fixtures", () => {
     assert.ok(result.structure.directories.includes("packages"));
     assert.ok(result.structure.directories.includes("apps"));
     assert.ok(result.structure.ciWorkflows.includes(".github/workflows/ci.yml"));
+  });
+
+  test("drift fixture's AGENTS.md differs from freshly rendered content", async () => {
+    const root = join(fixturesRoot, "drift");
+    const result = await scanRepository(root);
+    const fresh = renderOutputFiles(result).find((f) => f.path === "AGENTS.md");
+
+    assert.ok(fresh, "expected AGENTS.md in rendered output");
+
+    const committed = await readFile(join(root, "AGENTS.md"), "utf8");
+
+    assert.notEqual(committed, fresh?.content, "drift fixture must differ from fresh output");
+    // Sanity: committed fixture still contains the removed timestamp marker
+    assert.ok(committed.includes("Generated:"), "fixture should look genuinely stale");
+    // Sanity: fresh output must NOT contain timestamp (Task 1 guarantee)
+    assert.equal(fresh?.content.includes("Generated:"), false);
   });
 });
