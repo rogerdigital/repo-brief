@@ -78,6 +78,7 @@ export async function runCli(args: string[], io: CliIo = DEFAULT_IO): Promise<nu
     io.stdout(`- Package manager: ${brief.packageManager}`);
     io.stdout(`- Frameworks: ${brief.frameworks.length > 0 ? brief.frameworks.join(", ") : "Not detected"}`);
     io.stdout("");
+    io.stdout(`Generated at: ${brief.generatedAt}`);
 
     if (parsed.command === "doctor") {
       io.stdout("Agent readiness notes:");
