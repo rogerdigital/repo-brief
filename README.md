@@ -53,6 +53,26 @@ repo-brief fix --dry-run
 
 The binary is intentionally `repo-brief`, not `repo`. `repo brief`, `repo doctor`, and `repo fix` read well, but `repo` is too generic and conflicts with existing developer tooling.
 
+## GitHub Action
+
+Keep brief files fresh on every PR. Add this workflow to `.github/workflows/brief-check.yml` in any repo:
+
+```yaml
+name: Brief Check
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rogerdigital/repo-brief/.github/actions/repo-brief-check@v0.3
+```
+
+The check fails if any committed brief file (`AGENTS.md`, `docs/agent/*.md`) differs from freshly generated content. Run `repo-brief brief` locally and commit the changes to fix it.
+
 ## Readiness Checks
 
 `doctor` and `brief` detect common issues that confuse humans and coding agents:
@@ -92,7 +112,7 @@ The near-term path:
 
 1. Generate useful agent context from static repo signals.
 2. Add shallow readiness checks that catch command, docs, and package-manager mismatches.
-3. Add a GitHub Action to keep generated context fresh.
+3. ~~Add a GitHub Action to keep generated context fresh.~~ (v0.3)
 4. Add an MCP server so agents can query repo context on demand.
 5. Add safe fix mode only for low-risk generated files and obvious metadata mismatches.
 
