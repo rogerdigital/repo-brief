@@ -1,0 +1,53 @@
+name: RepoBrief Check
+description: >-
+  Detect drift in generated brief files (AGENTS.md, docs/agent/*.md).
+  Fails the job if any committed brief file differs from freshly generated content.
+
+inputs:
+  package-version:
+    description: "npm version or tag of @rogerdigital/repo-brief to use"
+    required: false
+    default: "latest"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Generate fresh brief into temp dir
+      shell: bash
+      run: |
+        npx -y @rogerdigital/repo-brief@${{ inputs.package-version }} brief --cwd "$RUNNER_TEMP/gen"
+
+    - name: Detect drift against committed files
+      shell: bash
+      run: |
+        set -euo pipefail
+        gen="$RUNNER_TEMP/gen"
+        drift_files=()
+        brief_paths=("AGENTS.md" "docs/agent/repo-map.md" "docs/agent/commands.md" "docs/agent/risk-zones.md")
+
+        for rel in "${brief_paths[@]}"; do
+          committed="$GITHUB_WORKSPACE/$rel"
+          generated="$gen/$rel"
+          if [[ ! -f "$committed" ]]; then
+            continue
+          fi
+          if ! git diff --no-index --quiet "$committed" "$generated"; then
+            drift_files+=("$rel")
+            echo "::group::Drift in $rel"
+            git diff --no-index "$committed" "$generated" || true
+            echo "::endgroup::"
+          fi
+        done
+
+        if (( ${#drift_files[@]} > 0 )); then
+          echo "::error::Brief files are out of date. Run \`repo-brief brief\` locally and commit the changes."
+          printf '  - %s\n' "${drift_files[@]}"
+          exit 1
+        fi
+
+        echo "All committed brief files are up to date."
