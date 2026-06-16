@@ -1,0 +1,29 @@
+name: Brief Check
+
+on:
+  pull_request:
+    paths:
+      - '**'
+      - '!.github/workflows/brief-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brief-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Brief drift check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: RepoBrief drift check
+        uses: ./.github/actions/repo-brief-check
+        with:
+          package-version: latest
