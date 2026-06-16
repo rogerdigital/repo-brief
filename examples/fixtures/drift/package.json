@@ -1,0 +1,7 @@
+{
+  "name": "drift-fixture",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test"
+  }
+}
