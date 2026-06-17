@@ -10,7 +10,7 @@ interface CliIo {
 }
 
 interface ParsedArgs {
-  command: "brief" | "doctor" | "fix";
+  command: "brief" | "doctor" | "fix" | "mcp";
   cwd: string;
   dryRun: boolean;
 }
@@ -32,7 +32,7 @@ function parseArgs(args: string[]): ParsedArgs {
       continue;
     }
 
-    if (arg === "brief" || arg === "doctor" || arg === "fix") {
+    if (arg === "brief" || arg === "doctor" || arg === "fix" || arg === "mcp") {
       command = arg;
       continue;
     }
@@ -69,6 +69,12 @@ async function writeOutputFiles(root: string, files: ReturnType<typeof renderOut
 export async function runCli(args: string[], io: CliIo = DEFAULT_IO): Promise<number> {
   try {
     const parsed = parseArgs(args);
+
+    if (parsed.command === "mcp") {
+      const { runMcpServer } = await import("./mcp/server.js");
+      return runMcpServer(parsed.cwd);
+    }
+
     const brief = await scanRepository(parsed.cwd);
     const files = renderOutputFiles(brief);
 
