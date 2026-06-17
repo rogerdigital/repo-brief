@@ -73,6 +73,45 @@ jobs:
 
 The check fails if any committed brief file (`AGENTS.md`, `docs/agent/*.md`) differs from freshly generated content. Run `repo-brief brief` locally and commit the changes to fix it.
 
+## MCP Server
+
+Query repo context on demand from any MCP-compatible coding agent (Claude Code, Cursor, Codex) instead of reading the generated files.
+
+Configure the stdio MCP server in your agent:
+
+**Claude Code** (`.mcp.json` in project root, or `~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "repo-brief": {
+      "command": "npx",
+      "args": ["-y", "@rogerdigital/repo-brief", "mcp"]
+    }
+  }
+}
+```
+
+**Cursor** (`.cursor/mcp.json` in project root):
+
+```json
+{
+  "mcpServers": {
+    "repo-brief": {
+      "command": "npx",
+      "args": ["-y", "@rogerdigital/repo-brief", "mcp"]
+    }
+  }
+}
+```
+
+Once configured, the agent can call four tools:
+
+- `get_repo_map` — root path, package manager, frameworks, structure
+- `get_commands` — package scripts + verification subset
+- `get_readiness_notes` — agent readiness notes
+- `refresh` — rescan the repo after files change
+
 ## Readiness Checks
 
 `doctor` and `brief` detect common issues that confuse humans and coding agents:
@@ -113,7 +152,7 @@ The near-term path:
 1. Generate useful agent context from static repo signals.
 2. Add shallow readiness checks that catch command, docs, and package-manager mismatches.
 3. ~~Add a GitHub Action to keep generated context fresh.~~ (v0.3)
-4. Add an MCP server so agents can query repo context on demand.
+4. ~~Add an MCP server so agents can query repo context on demand.~~ (v0.4)
 5. Add safe fix mode only for low-risk generated files and obvious metadata mismatches.
 
 Non-goals for the first releases:

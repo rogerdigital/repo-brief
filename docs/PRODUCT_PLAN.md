@@ -54,8 +54,8 @@ Do not use `repo brief`, `repo doctor`, or `repo fix` as the primary interface. 
 
 ### v0.4: MCP Server
 
-- Expose repo map, commands, and readiness notes through MCP.
-- Let coding agents query context instead of reading every generated file.
+- [x] Expose repo map, commands, and readiness notes through MCP.
+- [x] Let coding agents query context instead of reading every generated file.
 
 ### v0.5: Safe Fix Mode
 
