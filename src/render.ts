@@ -4,7 +4,7 @@ function listOrFallback(items: string[], fallback: string): string {
   return items.length > 0 ? items.join(", ") : fallback;
 }
 
-const VERIFICATION_SCRIPTS = ["test", "build", "lint", "verify"];
+export const VERIFICATION_SCRIPTS = ["test", "build", "lint", "verify"];
 
 function renderVerificationSection(brief: RepositoryBrief): string | null {
   const entries = brief.commands

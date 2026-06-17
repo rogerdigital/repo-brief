@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { renderAgentsMd, renderRepoMap, renderOutputFiles } from "../src/render.js";
+import { renderAgentsMd, renderRepoMap, renderOutputFiles, VERIFICATION_SCRIPTS } from "../src/render.js";
 import type { RepositoryBrief } from "../src/types.js";
 
 const brief: RepositoryBrief = {
@@ -91,6 +91,10 @@ describe("renderers", () => {
     const output = renderAgentsMd(brief);
 
     assert.equal(output.includes("Generated:"), false);
+  });
+
+  test("exports VERIFICATION_SCRIPTS for shared use", () => {
+    assert.deepEqual(VERIFICATION_SCRIPTS, ["test", "build", "lint", "verify"]);
   });
 
   test("renders identical output for the same brief (determinism)", () => {
