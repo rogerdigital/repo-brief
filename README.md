@@ -49,7 +49,20 @@ repo-brief fix --dry-run
 
 - `brief`: generates agent-ready repo context files.
 - `doctor`: prints agent readiness notes without writing files.
-- `fix`: conservative generation mode. In v0.1 it only writes the same low-risk context files as `brief`.
+- `fix`: detects fixable issues from readiness notes and proposes patches. Default is dry-run (prints diffs); pass `--apply` to write changes. Fixes are labeled `[deterministic]` (safe, unambiguous) or `[assumed-standard]` (uses conventional commands like `eslint .` / `tsc --noEmit`).
+
+  ```bash
+  # See what would change
+  repo-brief fix
+
+  # Apply
+  repo-brief fix --apply
+  # Applied 2 fix(es) to 2 file(s): package.json, README.md
+  # Review with: git diff
+  # Rollback with: git checkout -- <file>
+  ```
+
+  The 4 fixable issue classes: `packageManager` field mismatch, README package-manager commands, CI workflow package-manager commands, missing `lint`/`typecheck` scripts.
 
 The binary is intentionally `repo-brief`, not `repo`. `repo brief`, `repo doctor`, and `repo fix` read well, but `repo` is too generic and conflicts with existing developer tooling.
 
@@ -153,7 +166,7 @@ The near-term path:
 2. Add shallow readiness checks that catch command, docs, and package-manager mismatches.
 3. ~~Add a GitHub Action to keep generated context fresh.~~ (v0.3)
 4. ~~Add an MCP server so agents can query repo context on demand.~~ (v0.4)
-5. Add safe fix mode only for low-risk generated files and obvious metadata mismatches.
+5. ~~Add safe fix mode only for low-risk generated files and obvious metadata mismatches.~~ (v0.5)
 
 Non-goals for the first releases:
 
