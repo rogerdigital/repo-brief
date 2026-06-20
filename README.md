@@ -42,7 +42,9 @@ Agent readiness notes:
 repo-brief
 repo-brief brief
 repo-brief doctor
-repo-brief fix --dry-run
+repo-brief fix
+repo-brief fix --apply
+repo-brief mcp
 ```
 
 `repo-brief` defaults to `brief`.
@@ -81,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: rogerdigital/repo-brief/.github/actions/repo-brief-check@v0.3
+      - uses: rogerdigital/repo-brief/.github/actions/repo-brief-check@v0.5
 ```
 
 The check fails if any committed brief file (`AGENTS.md`, `docs/agent/*.md`) differs from freshly generated content. Run `repo-brief brief` locally and commit the changes to fix it.
@@ -158,15 +160,15 @@ Fixture projects live under `examples/fixtures`. They cover package-manager dete
 
 ## Product Direction
 
-RepoBrief starts as a brief generator, not a broad code quality platform.
+RepoBrief is a brief generator, not a broad code quality platform.
 
-The near-term path:
+The shipped milestones:
 
-1. Generate useful agent context from static repo signals.
-2. Add shallow readiness checks that catch command, docs, and package-manager mismatches.
-3. ~~Add a GitHub Action to keep generated context fresh.~~ (v0.3)
-4. ~~Add an MCP server so agents can query repo context on demand.~~ (v0.4)
-5. ~~Add safe fix mode only for low-risk generated files and obvious metadata mismatches.~~ (v0.5)
+1. ✅ Generate useful agent context from static repo signals. (v0.1)
+2. ✅ Add shallow readiness checks that catch command, docs, and package-manager mismatches. (v0.2)
+3. ✅ Add a GitHub Action to keep generated context fresh. (v0.3)
+4. ✅ Add an MCP server so agents can query repo context on demand. (v0.4)
+5. ✅ Add safe fix mode for low-risk generated files and obvious metadata mismatches. (v0.5)
 
 Non-goals for the first releases:
 
