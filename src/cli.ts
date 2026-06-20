@@ -13,6 +13,7 @@ interface ParsedArgs {
   command: "brief" | "doctor" | "fix" | "mcp";
   cwd: string;
   dryRun: boolean;
+  apply: boolean;
 }
 
 const DEFAULT_IO: CliIo = {
@@ -24,6 +25,7 @@ function parseArgs(args: string[]): ParsedArgs {
   let command: ParsedArgs["command"] = "brief";
   let cwd = process.cwd();
   let dryRun = false;
+  let apply = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -42,6 +44,11 @@ function parseArgs(args: string[]): ParsedArgs {
       continue;
     }
 
+    if (arg === "--apply") {
+      apply = true;
+      continue;
+    }
+
     if (arg === "--cwd") {
       const value = args[index + 1];
       if (!value) throw new Error("--cwd requires a path");
@@ -53,7 +60,7 @@ function parseArgs(args: string[]): ParsedArgs {
     throw new Error(`Unknown argument: ${arg}`);
   }
 
-  return { command, cwd, dryRun };
+  return { command, cwd, dryRun, apply };
 }
 
 async function writeOutputFiles(root: string, files: ReturnType<typeof renderOutputFiles>): Promise<void> {
@@ -75,6 +82,11 @@ export async function runCli(args: string[], io: CliIo = DEFAULT_IO): Promise<nu
       return runMcpServer(parsed.cwd);
     }
 
+    if (parsed.command === "fix") {
+      const { runFixCommand } = await import("./fix/index.js");
+      return runFixCommand(parsed.cwd, { apply: parsed.apply }, io);
+    }
+
     const brief = await scanRepository(parsed.cwd);
     const files = renderOutputFiles(brief);
 
@@ -93,12 +105,7 @@ export async function runCli(args: string[], io: CliIo = DEFAULT_IO): Promise<nu
       return 0;
     }
 
-    if (parsed.command === "fix") {
-      io.stdout("Fix mode is intentionally conservative in v0.1.");
-      io.stdout(parsed.dryRun ? "Would generate:" : "Generated:");
-    } else {
-      io.stdout(parsed.dryRun ? "Would generate:" : "Generated:");
-    }
+    io.stdout(parsed.dryRun ? "Would generate:" : "Generated:");
 
     for (const file of files) io.stdout(`- ${file.path}`);
 

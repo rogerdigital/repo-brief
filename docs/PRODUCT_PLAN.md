@@ -59,10 +59,10 @@ Do not use `repo brief`, `repo doctor`, or `repo fix` as the primary interface. 
 
 ### v0.5: Safe Fix Mode
 
-- Generate missing context files.
-- Update generated files.
-- Suggest risky fixes without applying them by default.
-- Apply only deterministic metadata fixes.
+- [x] Generate missing context files. (Provided by the `brief` command since v0.1.)
+- [x] Update generated files. (Provided by the `brief` command since v0.1.)
+- [x] Suggest risky fixes without applying them by default. (`fix` defaults to dry-run; `--apply` writes.)
+- [x] Apply only deterministic metadata fixes. (4 fixers: packageManager field, README/CI package-manager commands, missing standard scripts. lint/typecheck marked `assumed-standard`.)
 
 ## Scope Guardrails
 
