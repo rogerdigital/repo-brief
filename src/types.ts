@@ -24,3 +24,9 @@ export interface OutputFile {
   path: string;
   content: string;
 }
+
+/** Shared CLI I/O interface used by runCli and runFixCommand. */
+export interface CliIo {
+  stdout: (line: string) => void;
+  stderr: (line: string) => void;
+}

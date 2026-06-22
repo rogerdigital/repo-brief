@@ -33,7 +33,6 @@ export interface FixCommandOptions {
   apply: boolean;
 }
 
-export interface CliIo {
-  stdout: (line: string) => void;
-  stderr: (line: string) => void;
-}
+// CliIo is shared with the top-level CLI; re-export the canonical definition
+// so fix-module consumers import from one place.
+export type { CliIo } from "../types.js";
