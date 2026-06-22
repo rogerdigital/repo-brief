@@ -20,7 +20,24 @@ runs:
     - name: Generate fresh brief into temp dir
       shell: bash
       run: |
-        npx -y @rogerdigital/repo-brief@${{ inputs.package-version }} brief --cwd "$RUNNER_TEMP/gen"
+        # repo-brief's --cwd controls BOTH the scan root and the output root.
+        # We need to scan the checked-out workspace but write generated files
+        # to a temp location (so we don't clobber committed files before
+        # diffing). Copy the workspace to a temp dir — excluding the brief
+        # files we're about to regenerate (so stale committed versions can't
+        # influence the scan), .git, and common heavy dirs — then run brief
+        # there. node_modules typically isn't present in this job (no install
+        # step), but exclude defensively.
+        src="$GITHUB_WORKSPACE"
+        gen="$RUNNER_TEMP/gen"
+        mkdir -p "$gen"
+        rsync -a \
+          --exclude='/AGENTS.md' \
+          --exclude='/docs/agent/' \
+          --exclude='/.git/' \
+          --exclude='/node_modules/' \
+          "$src/" "$gen/"
+        npx -y @rogerdigital/repo-brief@${{ inputs.package-version }} brief --cwd "$gen"
 
     - name: Detect drift against committed files
       shell: bash
