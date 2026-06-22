@@ -24,7 +24,7 @@ const SERVER_NAME = "repo-brief";
 // version-consistency test (tests/mcp.test.ts). A hardcoded constant is used
 // instead of runtime package.json reading because import.meta.url resolution
 // is unreliable under `node --test`.
-const SERVER_VERSION = "0.5.0";
+const SERVER_VERSION = "0.5.1";
 
 export interface McpServerOptions {
   stdin?: Readable;
