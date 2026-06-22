@@ -69,7 +69,7 @@ export function renderRepoMap(brief: RepositoryBrief): string {
 
 ## Snapshot
 
-- Root: \`${brief.root}\`
+- Root: \`.\`
 - Package manager: ${brief.packageManager}
 - Frameworks: ${listOrFallback(brief.frameworks, "Not detected")}
 

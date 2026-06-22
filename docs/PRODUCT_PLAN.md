@@ -15,6 +15,7 @@ repo-brief
 repo-brief brief
 repo-brief doctor
 repo-brief fix
+repo-brief mcp
 ```
 
 Do not use `repo brief`, `repo doctor`, or `repo fix` as the primary interface. Those commands are elegant, but `repo` is a broad name with existing collisions. A future shell alias or separate package can be considered only after the core project has traction.
@@ -50,7 +51,7 @@ Do not use `repo brief`, `repo doctor`, or `repo fix` as the primary interface. 
 
 - [x] Add an action that runs on PRs.
 - [x] Report stale brief files.
-- [ ] Optionally open a patch with regenerated context files.
+- [x] Optionally open a patch with regenerated context files. (Superseded: CI auto-PR was replaced by the combination of the GitHub Action drift check (v0.3) + local `fix` command (v0.5). The action fails on drift; developers run `repo-brief fix` locally and commit. This keeps CI read-only and avoids the complexity/auth-surface of a write-capable bot.)
 
 ### v0.4: MCP Server
 

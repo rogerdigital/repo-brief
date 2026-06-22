@@ -90,4 +90,47 @@ describe("runFixCommand", () => {
       await rm(clean, { recursive: true, force: true });
     }
   });
+
+  test("detects fixes even when root has a trailing slash", async () => {
+    // Regression guard: fixers must build file keys with path.join (not string
+    // concatenation) so a trailing slash in root does not break Map lookups.
+    const dir = await mkdtemp(join(tmpdir(), "fix-slash-"));
+    try {
+      await writeFile(
+        join(dir, "package.json"),
+        JSON.stringify(
+          {
+            name: "x",
+            packageManager: "npm@9.0.0",
+            scripts: { build: "tsc" },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await writeFile(join(dir, "pnpm-lock.yaml"), "", "utf8");
+      await writeFile(
+        join(dir, "README.md"),
+        "# Project\n\nnpm run build\n",
+        "utf8",
+      );
+
+      const lines: string[] = [];
+      const exitCode = await runFixCommand(
+        dir + "/",
+        { apply: false },
+        { stdout: (l) => lines.push(l), stderr: () => {} },
+      );
+
+      assert.equal(exitCode, 0);
+      const out = lines.join("\n");
+      // If path keys mismatched, fixers would silently no-op and we'd see
+      // "No fixes needed" instead of diffs.
+      assert.match(out, /\[deterministic\] package\.json/);
+      assert.match(out, /\[deterministic\] README\.md/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

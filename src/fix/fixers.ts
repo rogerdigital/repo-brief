@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type { Fix, Fixer, FixerContext } from "./types.js";
 
 const PACKAGE_MANAGER_COMMANDS = new Set([
@@ -29,7 +30,7 @@ export const fixPackageManagerField: Fixer = (ctx: FixerContext): Fix[] => {
   const target = lockfileMatch[1];
 
   const relPath = "package.json";
-  const filePath = `${ctx.root}/${relPath}`;
+  const filePath = join(ctx.root, relPath);
   const original = ctx.files.get(filePath);
   if (original === undefined) return [];
 
@@ -101,7 +102,7 @@ export const fixReadmePackageManagerCommands: Fixer = (ctx: FixerContext): Fix[]
   if (target === "unknown") return [];
 
   const relPath = "README.md";
-  const filePath = `${ctx.root}/${relPath}`;
+  const filePath = join(ctx.root, relPath);
   const original = ctx.files.get(filePath);
   if (original === undefined) return [];
 
@@ -137,7 +138,7 @@ export const fixCiPackageManagerCommands: Fixer = (ctx: FixerContext): Fix[] => 
 
   const fixes: Fix[] = [];
   for (const relPath of ctx.brief.structure.ciWorkflows) {
-    const filePath = `${ctx.root}/${relPath}`;
+    const filePath = join(ctx.root, relPath);
     const original = ctx.files.get(filePath);
     if (original === undefined) continue;
 
@@ -202,7 +203,7 @@ function insertScript(content: string, name: string, command: string): string {
  */
 export const fixMissingStandardScripts: Fixer = (ctx: FixerContext): Fix[] => {
   const relPath = "package.json";
-  const filePath = `${ctx.root}/${relPath}`;
+  const filePath = join(ctx.root, relPath);
   let current = ctx.files.get(filePath);
   if (current === undefined) return [];
 

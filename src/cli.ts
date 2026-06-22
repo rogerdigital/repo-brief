@@ -3,11 +3,7 @@ import { mkdir, realpath, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { scanRepository } from "./scanner.js";
 import { renderOutputFiles } from "./render.js";
-
-interface CliIo {
-  stdout: (line: string) => void;
-  stderr: (line: string) => void;
-}
+import type { CliIo } from "./types.js";
 
 interface ParsedArgs {
   command: "brief" | "doctor" | "fix" | "mcp";

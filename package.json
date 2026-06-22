@@ -25,6 +25,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "pnpm build && node dist/src/cli.js",
     "test": "pnpm build && node --test \"dist/tests/**/*.test.js\"",
+    "typecheck": "tsc --noEmit",
     "verify": "pnpm test",
     "prepack": "pnpm build"
   },

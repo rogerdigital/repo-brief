@@ -24,6 +24,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: RepoBrief drift check
+        # This repo's own CI builds from source so PRs validate against the
+        # exact code being merged (the published npm package lags between
+        # releases). External consumers omit use-source and pull via npx.
         uses: ./.github/actions/repo-brief-check
         with:
-          package-version: latest
+          use-source: "true"
