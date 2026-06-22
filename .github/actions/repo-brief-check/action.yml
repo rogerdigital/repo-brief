@@ -24,15 +24,14 @@ runs:
         # We need to scan the checked-out workspace but write generated files
         # to a temp location (so we don't clobber committed files before
         # diffing). Copy the workspace to a temp dir — excluding the brief
-        # files we're about to regenerate (so stale committed versions can't
-        # influence the scan), .git, and common heavy dirs — then run brief
-        # there. node_modules typically isn't present in this job (no install
-        # step), but exclude defensively.
+        # OUTPUTS we're about to regenerate (docs/agent/*) plus .git and
+        # node_modules, but KEEPING AGENTS.md since the scanner reports its
+        # presence/absence as a readiness note (excluding it would falsely
+        # add "No AGENTS.md found" to the generated brief and cause drift).
         src="$GITHUB_WORKSPACE"
         gen="$RUNNER_TEMP/gen"
         mkdir -p "$gen"
         rsync -a \
-          --exclude='/AGENTS.md' \
           --exclude='/docs/agent/' \
           --exclude='/.git/' \
           --exclude='/node_modules/' \

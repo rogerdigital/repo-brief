@@ -2,7 +2,7 @@
 
 ## Snapshot
 
-- Root: `/Users/Roger/Code/personal/repo-brief`
+- Root: `.`
 - Package manager: pnpm
 - Frameworks: Not detected
 
