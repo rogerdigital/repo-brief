@@ -20,7 +20,11 @@ interface JsonRpcResponse {
 
 const PROTOCOL_VERSION = "2025-06-18";
 const SERVER_NAME = "repo-brief";
-const SERVER_VERSION = "0.4.0";
+// NOTE: SERVER_VERSION must match package.json "version". Kept in sync by the
+// version-consistency test (tests/mcp.test.ts). A hardcoded constant is used
+// instead of runtime package.json reading because import.meta.url resolution
+// is unreliable under `node --test`.
+const SERVER_VERSION = "0.5.0";
 
 export interface McpServerOptions {
   stdin?: Readable;

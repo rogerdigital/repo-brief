@@ -1,5 +1,5 @@
 import { PassThrough } from "node:stream";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
@@ -87,6 +87,18 @@ describe("MCP server", () => {
     };
     assert.equal(result.serverInfo.name, "repo-brief");
     assert.ok(result.capabilities.tools !== undefined);
+
+    // serverInfo.version must match the published package version. Regression
+    // guard for the hardcoded-version drift bug. Uses process.cwd() because
+    // tests run from the project root.
+    const pkgVersion = JSON.parse(
+      await readFile(join(process.cwd(), "package.json"), "utf8"),
+    ).version;
+    assert.equal(
+      result.serverInfo.version,
+      pkgVersion,
+      "MCP serverInfo.version must match package.json version",
+    );
   });
 
   test("tools/list returns all four tools", async () => {
