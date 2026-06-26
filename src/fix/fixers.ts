@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { rewriteManagerCommandsInMarkdown } from "../markdown.js";
 import type { Fix, Fixer, FixerContext } from "./types.js";
 
 const PACKAGE_MANAGER_COMMANDS = new Set([
@@ -56,9 +57,11 @@ export const fixPackageManagerField: Fixer = (ctx: FixerContext): Fix[] => {
 };
 
 /**
- * Rewrites package-manager script command prefixes in `content` so that every
- * script invocation uses `target` as the manager. install/add/remove/exec/dlx/ci
- * are left untouched. Shared by the README and CI fixers.
+ * Rewrites package-manager script command prefixes in a plain command string
+ * (e.g. a CI `run:` value) so every invocation uses `target` as the manager.
+ * install/add/remove/exec/dlx/ci are left untouched. Used by the CI fixer; the
+ * README fixer uses {@link rewriteManagerCommandsInMarkdown} instead, which
+ * scopes rewriting to code spans/blocks so prose is never altered.
  */
 function rewritePackageManagerCommands(content: string, target: string): string {
   const managerRe =
@@ -90,7 +93,9 @@ function rewritePackageManagerCommands(content: string, target: string): string 
 
 /**
  * Replaces wrong package-manager command prefixes in README with the target
- * (lockfile) manager. Excludes install/add/etc class commands.
+ * (lockfile) manager. Only commands inside code spans/blocks are rewritten;
+ * prose is left verbatim so descriptive mentions are never altered. Excludes
+ * install/add/etc class commands.
  */
 export const fixReadmePackageManagerCommands: Fixer = (ctx: FixerContext): Fix[] => {
   const note = ctx.brief.readinessNotes.find(
@@ -106,7 +111,7 @@ export const fixReadmePackageManagerCommands: Fixer = (ctx: FixerContext): Fix[]
   const original = ctx.files.get(filePath);
   if (original === undefined) return [];
 
-  const patched = rewritePackageManagerCommands(original, target);
+  const patched = rewriteManagerCommandsInMarkdown(original, target, PACKAGE_MANAGER_COMMANDS);
   if (patched === original) return [];
 
   ctx.files.set(filePath, patched);
@@ -146,6 +151,7 @@ export const fixCiPackageManagerCommands: Fixer = (ctx: FixerContext): Fix[] => 
       .split("\n")
       .map((line) => {
         const trimmed = line.trim();
+        // Extract the command after `run:`. Both `run: x` and `- run: x` forms.
         const runValue =
           trimmed.startsWith("- run:")
             ? trimmed.slice("- run:".length).trim()
@@ -156,7 +162,13 @@ export const fixCiPackageManagerCommands: Fixer = (ctx: FixerContext): Fix[] => 
 
         const newRunValue = rewritePackageManagerCommands(runValue, target);
         if (newRunValue === runValue) return line;
-        return line.replace(runValue, newRunValue);
+
+        // Re-derive the indentation prefix so we splice only the run: value back
+        // in. String.replace(value) would target the first occurrence anywhere in
+        // the line; splitting on the known prefix avoids touching an identical
+        // token that happens to appear earlier (e.g. in a comment or echo arg).
+        const runIndex = line.indexOf(runValue);
+        return line.slice(0, runIndex) + newRunValue + line.slice(runIndex + runValue.length);
       })
       .join("\n");
 

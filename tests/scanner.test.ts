@@ -152,6 +152,54 @@ describe("scanRepository", () => {
     ));
   });
 
+  test("ignores package-manager mentions in prose (no code context)", async () => {
+    // Regression: a descriptive sentence like "undefined npm/pnpm scripts" must
+    // not be treated as a command reference. Only commands inside code spans or
+    // fenced blocks count.
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": [
+        "# Demo",
+        "",
+        "Detects README referencing undefined npm/pnpm scripts.",
+        "Also mentions yarn install flows in prose.",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(
+      !result.readinessNotes.some((n) => n.includes("README references pnpm scripts")),
+      "prose 'pnpm scripts' must not be flagged as a script reference",
+    );
+    assert.ok(
+      !result.readinessNotes.some((n) => n.includes("README mentions npm commands")),
+      "prose 'npm/pnpm scripts' must not be flagged as an npm command mismatch",
+    );
+  });
+
+  test("detects command references inside fenced code blocks", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { test: "vitest run" } }),
+      "README.md": [
+        "# Demo",
+        "",
+        "```bash",
+        "pnpm test",
+        "pnpm verify",
+        "```",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes(
+      "README references pnpm verify, but package.json has no verify script.",
+    ));
+  });
+
   test("reports packageManager field mismatch with lockfile", async () => {
     const root = await createRepo({
       "pnpm-lock.yaml": "",
