@@ -25,7 +25,7 @@ before(async () => {
   await writeFile(join(root, "pnpm-lock.yaml"), "", "utf8");
   await writeFile(
     join(root, "README.md"),
-    "# Project\n\nnpm run build\nnpm test\n",
+    "# Project\n\nRun `npm run build` then `npm test`.\n",
     "utf8",
   );
 });
@@ -112,7 +112,7 @@ describe("runFixCommand", () => {
       await writeFile(join(dir, "pnpm-lock.yaml"), "", "utf8");
       await writeFile(
         join(dir, "README.md"),
-        "# Project\n\nnpm run build\n",
+        "# Project\n\nRun `npm run build`.\n",
         "utf8",
       );
 

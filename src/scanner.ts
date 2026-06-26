@@ -1,5 +1,6 @@
 import { access, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { findManagerCommandsInMarkdown } from "./markdown.js";
 import type { CommandSummary, PackageManager, RepositoryBrief, RepositoryStructure } from "./types.js";
 
 const SCRIPT_ORDER = ["dev", "build", "test", "lint", "typecheck", "check", "verify"];
@@ -190,11 +191,6 @@ function detectPackageManagerFieldMismatch(packageJson: PackageJson, lockfileMan
 }
 
 function detectReadmeCommandMismatch(packageManager: PackageManager, readme: string): string | null {
-  const npmRe = /\bnpm (run )?(test|build|lint|dev)\b/;
-  const pnpmRe = /\bpnpm (run )?(test|build|lint|dev)\b/;
-  const yarnRe = /\byarn (test|build|lint|dev)\b/;
-  const bunRe = /\bbun (run )?(test|build|lint|dev)\b/;
-
   const lockfileName: Record<PackageManager, string> = {
     pnpm: "pnpm-lock.yaml",
     yarn: "yarn.lock",
@@ -203,18 +199,26 @@ function detectReadmeCommandMismatch(packageManager: PackageManager, readme: str
     unknown: "lockfile",
   };
 
-  if (packageManager !== "npm" && packageManager !== "unknown" && npmRe.test(readme)) {
+  // Only commands inside code spans/blocks count — prose like "npm/pnpm scripts"
+  // is not a command reference.
+  const commandManagers = new Set(
+    findManagerCommandsInMarkdown(readme).map((m) => m.manager),
+  );
+
+  const mentions = (manager: string): boolean => commandManagers.has(manager);
+
+  if (packageManager !== "npm" && packageManager !== "unknown" && mentions("npm")) {
     return `README mentions npm commands, but ${lockfileName[packageManager]} suggests ${packageManager}.`;
   }
 
   if (packageManager === "npm") {
-    if (pnpmRe.test(readme)) {
+    if (mentions("pnpm")) {
       return "README mentions pnpm commands, but package-lock.json suggests npm.";
     }
-    if (yarnRe.test(readme)) {
+    if (mentions("yarn")) {
       return "README mentions yarn commands, but package-lock.json suggests npm.";
     }
-    if (bunRe.test(readme)) {
+    if (mentions("bun")) {
       return "README mentions bun commands, but package-lock.json suggests npm.";
     }
   }
@@ -226,18 +230,19 @@ function detectReadmeScriptMismatches(readme: string, commands: CommandSummary[]
   const notes: string[] = [];
   const scriptNames = new Set(commands.map((command) => command.name));
   const seen = new Set<string>();
-  const commandRe = /\b(pnpm|yarn) (?:run )?([a-zA-Z0-9:_-]+)\b|\bnpm run ([a-zA-Z0-9:_-]+)\b|\bnpm (test|build|lint|dev|verify|typecheck|check)\b|\bbun run ([a-zA-Z0-9:_-]+)\b/g;
 
-  for (const match of readme.matchAll(commandRe)) {
-    const packageManager = match[1] ?? (match[3] || match[4] ? "npm" : "bun");
-    const scriptName = match[2] ?? match[3] ?? match[4] ?? match[5];
-    if (!scriptName || PACKAGE_MANAGER_COMMANDS.has(scriptName)) continue;
-    if (scriptNames.has(scriptName)) continue;
+  // Only commands inside code spans/blocks count as references. Prose mentions
+  // (e.g. "npm/pnpm scripts") are ignored, so they can't produce false notes.
+  const matches = findManagerCommandsInMarkdown(readme);
 
-    const key = `${packageManager}:${scriptName}`;
+  for (const { manager, name } of matches) {
+    if (!name || PACKAGE_MANAGER_COMMANDS.has(name)) continue;
+    if (scriptNames.has(name)) continue;
+
+    const key = `${manager}:${name}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    notes.push(`README references ${packageManager} ${scriptName}, but package.json has no ${scriptName} script.`);
+    notes.push(`README references ${manager} ${name}, but package.json has no ${name} script.`);
   }
 
   return notes;

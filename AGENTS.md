@@ -22,7 +22,7 @@
 
 ## Agent Readiness Notes
 
-- README references pnpm scripts, but package.json has no scripts script.
+- No obvious agent readiness issues detected.
 
 ## Working Guidelines
 

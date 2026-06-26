@@ -82,7 +82,7 @@ function makeReadmeCtx(opts: {
 }): FixerContext {
   const readme =
     opts.readme ??
-    "# Project\n\nInstall deps:\n\nnpm install\n\nBuild:\n\nnpm run build\nnpm test\n";
+    "# Project\n\nInstall deps: `npm install`.\n\nBuild: `npm run build` then `npm test`.\n";
   const files = new Map<string, string>([["<root>/README.md", readme]]);
   const brief: RepositoryBrief = {
     root: "<root>",
@@ -120,7 +120,7 @@ describe("fixReadmePackageManagerCommands", () => {
   test("replaces yarn commands when target is npm", () => {
     const ctx = makeReadmeCtx({
       note: "README mentions yarn commands, but package-lock.json suggests npm.",
-      readme: "yarn build\nyarn test\n",
+      readme: "Run `yarn build` then `yarn test`.\n",
       target: "npm",
     });
 
@@ -129,6 +129,30 @@ describe("fixReadmePackageManagerCommands", () => {
     assert.equal(fixes.length, 1);
     assert.match(fixes[0].patchedContent, /npm run build/);
     assert.match(fixes[0].patchedContent, /npm test/);
+  });
+
+  test("leaves prose package-manager mentions untouched", () => {
+    // Regression: descriptive prose is not command context and must survive the
+    // rewrite verbatim. Only code spans/blocks are rewritten.
+    const ctx = makeReadmeCtx({
+      note: "README mentions npm commands, but pnpm-lock.yaml suggests pnpm.",
+      readme: [
+        "This tool detects undefined npm/pnpm scripts.",
+        "",
+        "Run `npm test` to verify.",
+      ].join("\n"),
+    });
+
+    const fixes = fixReadmePackageManagerCommands(ctx);
+
+    assert.equal(fixes.length, 1);
+    assert.match(fixes[0].patchedContent, /npm\/pnpm scripts/);
+    assert.match(fixes[0].patchedContent, /`pnpm test`/);
+    assert.doesNotMatch(
+      fixes[0].patchedContent,
+      /pnpm\/pnpm scripts/,
+      "prose must not be rewritten",
+    );
   });
 });
 
