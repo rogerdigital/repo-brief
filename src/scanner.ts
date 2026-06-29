@@ -275,15 +275,7 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
 
     const seenWrongPm = new Set<PackageManager>();
 
-    for (const line of content.split("\n")) {
-      const trimmed = line.trim();
-      const runValue = trimmed.startsWith("- run:")
-        ? trimmed.slice("- run:".length).trim()
-        : trimmed.startsWith("run:")
-          ? trimmed.slice("run:".length).trim()
-          : null;
-      if (runValue === null) continue;
-
+    for (const runValue of extractWorkflowRunCommands(content)) {
       for (const { prefix, pm: ciPm, pattern } of scriptRunPatterns) {
         const match = runValue.match(pattern);
         if (!match) continue;
@@ -310,6 +302,46 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
   }
 
   return notes;
+}
+
+function leadingWhitespaceLength(line: string): number {
+  return line.length - line.trimStart().length;
+}
+
+function extractWorkflowRunCommands(content: string): string[] {
+  const commands: string[] = [];
+  const lines = content.split("\n");
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmed = line.trim();
+    const runValue = trimmed.startsWith("- run:")
+      ? trimmed.slice("- run:".length).trim()
+      : trimmed.startsWith("run:")
+        ? trimmed.slice("run:".length).trim()
+        : null;
+    if (runValue === null) continue;
+
+    if (!/^[|>][+-]?$/.test(runValue)) {
+      commands.push(runValue);
+      continue;
+    }
+
+    const runIndent = leadingWhitespaceLength(line);
+    for (let bodyIndex = index + 1; bodyIndex < lines.length; bodyIndex += 1) {
+      const bodyLine = lines[bodyIndex];
+      const bodyTrimmed = bodyLine.trim();
+      if (bodyTrimmed === "") continue;
+
+      const bodyIndent = leadingWhitespaceLength(bodyLine);
+      if (bodyIndent <= runIndent) break;
+
+      commands.push(bodyTrimmed);
+      index = bodyIndex;
+    }
+  }
+
+  return commands;
 }
 
 async function detectStructure(root: string): Promise<RepositoryStructure> {

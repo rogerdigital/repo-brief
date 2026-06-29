@@ -299,6 +299,35 @@ describe("scanRepository", () => {
     ));
   });
 
+  test("reports GitHub Actions issues inside multiline run blocks", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      ".github/workflows/ci.yml": [
+        "name: CI",
+        "on: [push]",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - name: Verify",
+        "        run: |",
+        "          npm run build",
+        "          npm run verify",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("GitHub Actions uses npm") && n.includes("lockfile suggests pnpm"),
+    ));
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("GitHub Actions references npm run verify") &&
+      n.includes("package.json has no verify script"),
+    ));
+  });
+
   test("does not report CI mismatch when package managers match", async () => {
     const root = await createRepo({
       "pnpm-lock.yaml": "",
