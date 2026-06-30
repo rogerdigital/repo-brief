@@ -127,6 +127,10 @@ export const fixReadmePackageManagerCommands: Fixer = (ctx: FixerContext): Fix[]
   ];
 };
 
+function leadingWhitespaceLength(line: string): number {
+  return line.length - line.trimStart().length;
+}
+
 /**
  * Rewrites package-manager command prefixes in CI workflow `run:` lines so
  * they match the lockfile manager. Only `run:` steps are touched.
@@ -147,30 +151,64 @@ export const fixCiPackageManagerCommands: Fixer = (ctx: FixerContext): Fix[] => 
     const original = ctx.files.get(filePath);
     if (original === undefined) continue;
 
-    const patched = original
-      .split("\n")
-      .map((line) => {
-        const trimmed = line.trim();
-        // Extract the command after `run:`. Both `run: x` and `- run: x` forms.
-        const runValue =
-          trimmed.startsWith("- run:")
-            ? trimmed.slice("- run:".length).trim()
-            : trimmed.startsWith("run:")
-              ? trimmed.slice("run:".length).trim()
-              : null;
-        if (runValue === null) return line;
+    const patchedLines: string[] = [];
+    let multilineRunIndent: number | null = null;
 
-        const newRunValue = rewritePackageManagerCommands(runValue, target);
-        if (newRunValue === runValue) return line;
+    for (const line of original.split("\n")) {
+      const trimmed = line.trim();
 
-        // Re-derive the indentation prefix so we splice only the run: value back
-        // in. String.replace(value) would target the first occurrence anywhere in
-        // the line; splitting on the known prefix avoids touching an identical
-        // token that happens to appear earlier (e.g. in a comment or echo arg).
-        const runIndex = line.indexOf(runValue);
-        return line.slice(0, runIndex) + newRunValue + line.slice(runIndex + runValue.length);
-      })
-      .join("\n");
+      if (multilineRunIndent !== null) {
+        const lineIndent = leadingWhitespaceLength(line);
+        if (trimmed !== "" && lineIndent > multilineRunIndent) {
+          const rewritten = rewritePackageManagerCommands(trimmed, target);
+          if (rewritten !== trimmed) {
+            const commandIndex = line.indexOf(trimmed);
+            patchedLines.push(
+              line.slice(0, commandIndex) +
+                rewritten +
+                line.slice(commandIndex + trimmed.length),
+            );
+            continue;
+          }
+          patchedLines.push(line);
+          continue;
+        }
+        multilineRunIndent = null;
+      }
+
+      // Extract the command after `run:`. Both `run: x` and `- run: x` forms.
+      const runValue =
+        trimmed.startsWith("- run:")
+          ? trimmed.slice("- run:".length).trim()
+          : trimmed.startsWith("run:")
+            ? trimmed.slice("run:".length).trim()
+            : null;
+      if (runValue === null) {
+        patchedLines.push(line);
+        continue;
+      }
+
+      if (/^[|>][+-]?$/.test(runValue)) {
+        multilineRunIndent = leadingWhitespaceLength(line);
+        patchedLines.push(line);
+        continue;
+      }
+
+      const newRunValue = rewritePackageManagerCommands(runValue, target);
+      if (newRunValue === runValue) {
+        patchedLines.push(line);
+        continue;
+      }
+
+      // Re-derive the indentation prefix so we splice only the run: value back
+      // in. String.replace(value) would target the first occurrence anywhere in
+      // the line; splitting on the known prefix avoids touching an identical
+      // token that happens to appear earlier (e.g. in a comment or echo arg).
+      const runIndex = line.indexOf(runValue);
+      patchedLines.push(line.slice(0, runIndex) + newRunValue + line.slice(runIndex + runValue.length));
+    }
+
+    const patched = patchedLines.join("\n");
 
     if (patched === original) continue;
 

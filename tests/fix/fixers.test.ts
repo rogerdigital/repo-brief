@@ -187,6 +187,50 @@ describe("fixCiPackageManagerCommands", () => {
     assert.doesNotMatch(fixes[0].patchedContent, /pnpm checkout/);
   });
 
+  test("patches commands inside multiline workflow run blocks", () => {
+    const files = new Map<string, string>([
+      [
+        "<root>/.github/workflows/ci.yml",
+        [
+          "name: CI",
+          "on: push",
+          "jobs:",
+          "  build:",
+          "    runs-on: ubuntu-latest",
+          "    steps:",
+          "      - name: Verify",
+          "        run: |",
+          "          npm run build",
+          "          npm test",
+          "      - name: Release",
+          "        run: >",
+          "          npm run publish",
+        ].join("\n"),
+      ],
+    ]);
+    const brief: RepositoryBrief = {
+      root: "<root>",
+      packageManager: "pnpm",
+      frameworks: [],
+      commands: [],
+      readinessNotes: ["GitHub Actions uses npm, but lockfile suggests pnpm."],
+      structure: {
+        directories: [],
+        ciWorkflows: [".github/workflows/ci.yml"],
+      },
+      generatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const ctx: FixerContext = { brief, files, root: "<root>" };
+
+    const fixes = fixCiPackageManagerCommands(ctx);
+
+    assert.equal(fixes.length, 1);
+    assert.match(fixes[0].patchedContent, /          pnpm build/);
+    assert.match(fixes[0].patchedContent, /          pnpm test/);
+    assert.match(fixes[0].patchedContent, /          pnpm publish/);
+    assert.doesNotMatch(fixes[0].patchedContent, /npm run build/);
+  });
+
   test("produces no fix when note absent", () => {
     const files = new Map<string, string>([
       ["<root>/.github/workflows/ci.yml", "- run: npm test\n"],
