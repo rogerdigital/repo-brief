@@ -75,6 +75,7 @@ export async function runMcpServer(
 
   const handleRequest = async (request: JsonRpcRequest): Promise<void> => {
     const id = request.id ?? null;
+    const isNotification = request.id === undefined;
 
     switch (request.method) {
       case "initialize":
@@ -132,6 +133,7 @@ export async function runMcpServer(
       }
 
       default:
+        if (isNotification) return;
         write(makeError(id, -32601, `Method not found: ${request.method}`));
     }
   };
