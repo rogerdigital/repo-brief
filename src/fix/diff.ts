@@ -61,38 +61,26 @@ export function renderDiff(
   }
   if (changeIndices.length === 0) return "";
 
-  const hunkStart = Math.max(0, changeIndices[0] - CONTEXT);
-  const hunkEnd = Math.min(ops.length - 1, changeIndices[changeIndices.length - 1] + CONTEXT);
+  const hunkRanges: { start: number; end: number }[] = [];
+  for (const changeIndex of changeIndices) {
+    const start = Math.max(0, changeIndex - CONTEXT);
+    const end = Math.min(ops.length - 1, changeIndex + CONTEXT);
+    const previous = hunkRanges[hunkRanges.length - 1];
+    if (previous && start <= previous.end + 1) {
+      previous.end = Math.max(previous.end, end);
+    } else {
+      hunkRanges.push({ start, end });
+    }
+  }
 
   const lines: string[] = [];
   lines.push(`--- a/${relPath}`);
   lines.push(`+++ b/${relPath}`);
 
-  let oldStart = 0;
-  let oldCount = 0;
-  let newStart = 0;
-  let newCount = 0;
-  let oldLine = 1;
-  let newLine = 1;
-  for (let k = 0; k < ops.length; k++) {
-    if (k === hunkStart) {
-      oldStart = oldLine;
-      newStart = newLine;
-    }
-    if (k >= hunkStart && k <= hunkEnd) {
-      if (ops[k].kind === "eq") {
-        oldLine++;
-        newLine++;
-        oldCount++;
-        newCount++;
-      } else if (ops[k].kind === "del") {
-        oldLine++;
-        oldCount++;
-      } else {
-        newLine++;
-        newCount++;
-      }
-    } else {
+  const positionAt = (index: number): { oldLine: number; newLine: number } => {
+    let oldLine = 1;
+    let newLine = 1;
+    for (let k = 0; k < index; k++) {
       if (ops[k].kind === "eq") {
         oldLine++;
         newLine++;
@@ -102,15 +90,32 @@ export function renderDiff(
         newLine++;
       }
     }
-  }
+    return { oldLine, newLine };
+  };
 
-  lines.push(`@@ -${oldStart},${oldCount} +${newStart},${newCount} @@`);
+  for (const { start, end } of hunkRanges) {
+    const { oldLine: oldStart, newLine: newStart } = positionAt(start);
+    let oldCount = 0;
+    let newCount = 0;
 
-  for (let k = hunkStart; k <= hunkEnd; k++) {
-    const op = ops[k];
-    if (op.kind === "eq") lines.push(` ${op.line}`);
-    else if (op.kind === "del") lines.push(`-${op.line}`);
-    else lines.push(`+${op.line}`);
+    for (let k = start; k <= end; k++) {
+      if (ops[k].kind === "eq") {
+        oldCount++;
+        newCount++;
+      } else if (ops[k].kind === "del") {
+        oldCount++;
+      } else {
+        newCount++;
+      }
+    }
+
+    lines.push(`@@ -${oldStart},${oldCount} +${newStart},${newCount} @@`);
+    for (let k = start; k <= end; k++) {
+      const op = ops[k];
+      if (op.kind === "eq") lines.push(` ${op.line}`);
+      else if (op.kind === "del") lines.push(`-${op.line}`);
+      else lines.push(`+${op.line}`);
+    }
   }
 
   return lines.join("\n");

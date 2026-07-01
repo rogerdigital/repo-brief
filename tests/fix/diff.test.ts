@@ -45,4 +45,35 @@ describe("renderDiff", () => {
     assert.match(result, /^\+x$/m);
     assert.match(result, /^\+y$/m);
   });
+
+  test("distant changes render as separate hunks", () => {
+    const original = [
+      "a1",
+      "a2",
+      "a3",
+      "a4",
+      "a5",
+      "a6",
+      "a7",
+      "a8",
+      "a9",
+      "a10",
+    ].join("\n");
+    const patched = [
+      "A1",
+      "a2",
+      "a3",
+      "a4",
+      "a5",
+      "a6",
+      "a7",
+      "a8",
+      "a9",
+      "A10",
+    ].join("\n");
+
+    const result = renderDiff("file.txt", original, patched);
+
+    assert.equal(result.match(/^@@ /gm)?.length, 2);
+  });
 });

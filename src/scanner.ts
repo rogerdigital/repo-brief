@@ -1,6 +1,7 @@
 import { access, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { findManagerCommandsInMarkdown } from "./markdown.js";
+import { extractWorkflowRunCommands } from "./workflow.js";
 import type { CommandSummary, PackageManager, RepositoryBrief, RepositoryStructure } from "./types.js";
 
 const SCRIPT_ORDER = ["dev", "build", "test", "lint", "typecheck", "check", "verify"];
@@ -96,11 +97,16 @@ async function detectReadinessNotes(
   readme: string | null,
   commands: CommandSummary[],
   packageJson: PackageJson,
+  packageJsonParseFailed: boolean,
 ): Promise<string[]> {
   const notes: string[] = [];
 
   if (!files.has(join(root, "package.json"))) {
     notes.push("No package.json found.");
+  }
+
+  if (packageJsonParseFailed) {
+    notes.push("package.json could not be parsed.");
   }
 
   if (hasMultipleLockfiles(root, files)) {
@@ -262,11 +268,16 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
   const scriptNames = new Set(commands.map((c) => c.name));
   const workflowFiles = entries.filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
 
-  const scriptRunPatterns = [
-    { prefix: "pnpm", pm: "pnpm" as PackageManager, pattern: /^pnpm (?:run )?(\S+)/ },
-    { prefix: "npm run", pm: "npm" as PackageManager, pattern: /^npm run (\S+)/ },
-    { prefix: "yarn", pm: "yarn" as PackageManager, pattern: /^yarn (?:run )?(\S+)/ },
-    { prefix: "bun run", pm: "bun" as PackageManager, pattern: /^bun run (\S+)/ },
+  const scriptRunPatterns: {
+    pm: PackageManager;
+    pattern: RegExp;
+    display: (scriptName: string) => string;
+  }[] = [
+    { pm: "pnpm", pattern: /^pnpm (?:run )?(\S+)/, display: (scriptName) => `pnpm ${scriptName}` },
+    { pm: "npm", pattern: /^npm run (\S+)/, display: (scriptName) => `npm run ${scriptName}` },
+    { pm: "npm", pattern: /^npm (test|build|lint|dev|verify|typecheck|check|ci|install|add|remove|exec|dlx)\b/, display: (scriptName) => `npm ${scriptName}` },
+    { pm: "yarn", pattern: /^yarn (?:run )?(\S+)/, display: (scriptName) => `yarn ${scriptName}` },
+    { pm: "bun", pattern: /^bun (?:run )?(\S+)/, display: (scriptName) => `bun ${scriptName}` },
   ];
 
   for (const file of workflowFiles) {
@@ -275,18 +286,12 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
 
     const seenWrongPm = new Set<PackageManager>();
 
-    for (const runValue of extractWorkflowRunCommands(content)) {
-      for (const { prefix, pm: ciPm, pattern } of scriptRunPatterns) {
-        const match = runValue.match(pattern);
+    for (const { command } of extractWorkflowRunCommands(content)) {
+      for (const { pm: ciPm, pattern, display } of scriptRunPatterns) {
+        const match = command.match(pattern);
         if (!match) continue;
 
         const scriptName = match[1];
-        if (PACKAGE_MANAGER_COMMANDS.has(scriptName)) continue;
-
-        if (!scriptNames.has(scriptName)) {
-          notes.push(`GitHub Actions references ${prefix} ${scriptName}, but package.json has no ${scriptName} script.`);
-        }
-
         if (
           ciPm !== packageManager &&
           packageManager !== "unknown" &&
@@ -297,51 +302,17 @@ async function detectCiScriptMismatches(root: string, commands: CommandSummary[]
             `GitHub Actions uses ${ciPm}, but lockfile suggests ${packageManager}.`,
           );
         }
+
+        if (PACKAGE_MANAGER_COMMANDS.has(scriptName)) continue;
+
+        if (!scriptNames.has(scriptName)) {
+          notes.push(`GitHub Actions references ${display(scriptName)}, but package.json has no ${scriptName} script.`);
+        }
       }
     }
   }
 
   return notes;
-}
-
-function leadingWhitespaceLength(line: string): number {
-  return line.length - line.trimStart().length;
-}
-
-function extractWorkflowRunCommands(content: string): string[] {
-  const commands: string[] = [];
-  const lines = content.split("\n");
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    const trimmed = line.trim();
-    const runValue = trimmed.startsWith("- run:")
-      ? trimmed.slice("- run:".length).trim()
-      : trimmed.startsWith("run:")
-        ? trimmed.slice("run:".length).trim()
-        : null;
-    if (runValue === null) continue;
-
-    if (!/^[|>][+-]?$/.test(runValue)) {
-      commands.push(runValue);
-      continue;
-    }
-
-    const runIndent = leadingWhitespaceLength(line);
-    for (let bodyIndex = index + 1; bodyIndex < lines.length; bodyIndex += 1) {
-      const bodyLine = lines[bodyIndex];
-      const bodyTrimmed = bodyLine.trim();
-      if (bodyTrimmed === "") continue;
-
-      const bodyIndent = leadingWhitespaceLength(bodyLine);
-      if (bodyIndent <= runIndent) break;
-
-      commands.push(bodyTrimmed);
-      index = bodyIndex;
-    }
-  }
-
-  return commands;
 }
 
 async function detectStructure(root: string): Promise<RepositoryStructure> {
@@ -383,12 +354,12 @@ interface PackageJson {
   packageManager?: string;
 }
 
-function parsePackageJson(content: string | null): PackageJson {
-  if (!content) return {};
+function parsePackageJson(content: string | null): { packageJson: PackageJson; parseFailed: boolean } {
+  if (!content) return { packageJson: {}, parseFailed: false };
   try {
-    return JSON.parse(content) as PackageJson;
+    return { packageJson: JSON.parse(content) as PackageJson, parseFailed: false };
   } catch {
-    return {};
+    return { packageJson: {}, parseFailed: true };
   }
 }
 
@@ -415,7 +386,8 @@ export async function scanRepository(root: string): Promise<RepositoryBrief> {
   const packageManager = detectPackageManager(root, files);
   const hasPackageJson = files.has(join(root, "package.json"));
   const effectivePackageManager = hasPackageJson ? packageManager : "unknown" as PackageManager;
-  const packageJson = parsePackageJson(await readText(join(root, "package.json")));
+  const parsedPackageJson = parsePackageJson(await readText(join(root, "package.json")));
+  const packageJson = parsedPackageJson.packageJson;
   const readme = await readText(join(root, "README.md"));
   const commands = detectCommands(effectivePackageManager, packageJson);
 
@@ -424,7 +396,15 @@ export async function scanRepository(root: string): Promise<RepositoryBrief> {
     packageManager: effectivePackageManager,
     frameworks: detectFrameworks(packageJson),
     commands,
-    readinessNotes: await detectReadinessNotes(root, files, effectivePackageManager, readme, commands, packageJson),
+    readinessNotes: await detectReadinessNotes(
+      root,
+      files,
+      effectivePackageManager,
+      readme,
+      commands,
+      packageJson,
+      parsedPackageJson.parseFailed,
+    ),
     structure: await detectStructure(root),
     generatedAt: new Date().toISOString(),
   };

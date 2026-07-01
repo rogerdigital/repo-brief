@@ -77,6 +77,16 @@ describe("scanRepository", () => {
     assert.ok(result.readinessNotes.includes("No package.json found."));
   });
 
+  test("reports invalid package.json", async () => {
+    const root = await createRepo({
+      "package.json": "{ invalid json",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes("package.json could not be parsed."));
+  });
+
   test("reports README mismatch for yarn", async () => {
     const root = await createRepo({
       "yarn.lock": "",
@@ -326,6 +336,89 @@ describe("scanRepository", () => {
       n.includes("GitHub Actions references npm run verify") &&
       n.includes("package.json has no verify script"),
     ));
+  });
+
+  test("reports GitHub Actions mismatch for bare npm and bun test commands", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { build: "tsc" } }),
+      ".github/workflows/ci.yml": [
+        "name: CI",
+        "on: [push]",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: npm test",
+        "      - run: bun test",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("GitHub Actions uses npm") && n.includes("lockfile suggests pnpm"),
+    ));
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("GitHub Actions uses bun") && n.includes("lockfile suggests pnpm"),
+    ));
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("GitHub Actions references npm test") &&
+      n.includes("package.json has no test script"),
+    ));
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("GitHub Actions references bun test") &&
+      n.includes("package.json has no test script"),
+    ));
+  });
+
+  test("reports GitHub Actions package-manager mismatch for quoted run commands", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      ".github/workflows/ci.yml": [
+        "name: CI",
+        "on: [push]",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: \"npm run build\"",
+        "      - run: 'npm test'",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("GitHub Actions uses npm") && n.includes("lockfile suggests pnpm"),
+    ));
+  });
+
+  test("reports GitHub Actions package-manager mismatch for npm ci", async () => {
+    const root = await createRepo({
+      "pnpm-lock.yaml": "",
+      "package.json": JSON.stringify({ scripts: { build: "tsc", test: "vitest run" } }),
+      ".github/workflows/ci.yml": [
+        "name: CI",
+        "on: [push]",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: npm ci",
+      ].join("\n"),
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.some((n) =>
+      n.includes("GitHub Actions uses npm") && n.includes("lockfile suggests pnpm"),
+    ));
+    assert.equal(
+      result.readinessNotes.some((n) => n.includes("package.json has no ci script")),
+      false,
+    );
   });
 
   test("does not report CI mismatch when package managers match", async () => {

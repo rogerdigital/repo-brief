@@ -67,7 +67,16 @@ runs:
         for rel in "${brief_paths[@]}"; do
           committed="$GITHUB_WORKSPACE/$rel"
           generated="$gen/$rel"
-          if [[ ! -f "$committed" ]]; then
+          if [[ ! -f "$committed" || ! -f "$generated" ]]; then
+            drift_files+=("$rel")
+            echo "::group::Drift in $rel"
+            if [[ ! -f "$committed" ]]; then
+              echo "Committed file is missing: $rel"
+            fi
+            if [[ ! -f "$generated" ]]; then
+              echo "Generated file is missing: $rel"
+            fi
+            echo "::endgroup::"
             continue
           fi
           if ! git diff --no-index --quiet "$committed" "$generated"; then

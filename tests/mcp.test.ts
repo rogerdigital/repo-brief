@@ -218,4 +218,14 @@ describe("MCP server", () => {
     assert.equal(responses[0].id, null);
     assert.equal(responses[0].error?.code, -32700);
   });
+
+  test("notifications do not produce responses", async () => {
+    const responses = await runSession(tempRoot, [
+      JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize" }),
+      JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+      JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }),
+    ]);
+
+    assert.deepEqual(responses.map((response) => response.id), [1, 2]);
+  });
 });
