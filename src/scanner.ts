@@ -97,11 +97,16 @@ async function detectReadinessNotes(
   readme: string | null,
   commands: CommandSummary[],
   packageJson: PackageJson,
+  packageJsonParseFailed: boolean,
 ): Promise<string[]> {
   const notes: string[] = [];
 
   if (!files.has(join(root, "package.json"))) {
     notes.push("No package.json found.");
+  }
+
+  if (packageJsonParseFailed) {
+    notes.push("package.json could not be parsed.");
   }
 
   if (hasMultipleLockfiles(root, files)) {
@@ -349,12 +354,12 @@ interface PackageJson {
   packageManager?: string;
 }
 
-function parsePackageJson(content: string | null): PackageJson {
-  if (!content) return {};
+function parsePackageJson(content: string | null): { packageJson: PackageJson; parseFailed: boolean } {
+  if (!content) return { packageJson: {}, parseFailed: false };
   try {
-    return JSON.parse(content) as PackageJson;
+    return { packageJson: JSON.parse(content) as PackageJson, parseFailed: false };
   } catch {
-    return {};
+    return { packageJson: {}, parseFailed: true };
   }
 }
 
@@ -381,7 +386,8 @@ export async function scanRepository(root: string): Promise<RepositoryBrief> {
   const packageManager = detectPackageManager(root, files);
   const hasPackageJson = files.has(join(root, "package.json"));
   const effectivePackageManager = hasPackageJson ? packageManager : "unknown" as PackageManager;
-  const packageJson = parsePackageJson(await readText(join(root, "package.json")));
+  const parsedPackageJson = parsePackageJson(await readText(join(root, "package.json")));
+  const packageJson = parsedPackageJson.packageJson;
   const readme = await readText(join(root, "README.md"));
   const commands = detectCommands(effectivePackageManager, packageJson);
 
@@ -390,7 +396,15 @@ export async function scanRepository(root: string): Promise<RepositoryBrief> {
     packageManager: effectivePackageManager,
     frameworks: detectFrameworks(packageJson),
     commands,
-    readinessNotes: await detectReadinessNotes(root, files, effectivePackageManager, readme, commands, packageJson),
+    readinessNotes: await detectReadinessNotes(
+      root,
+      files,
+      effectivePackageManager,
+      readme,
+      commands,
+      packageJson,
+      parsedPackageJson.parseFailed,
+    ),
     structure: await detectStructure(root),
     generatedAt: new Date().toISOString(),
   };

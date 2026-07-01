@@ -77,6 +77,16 @@ describe("scanRepository", () => {
     assert.ok(result.readinessNotes.includes("No package.json found."));
   });
 
+  test("reports invalid package.json", async () => {
+    const root = await createRepo({
+      "package.json": "{ invalid json",
+    });
+
+    const result = await scanRepository(root);
+
+    assert.ok(result.readinessNotes.includes("package.json could not be parsed."));
+  });
+
   test("reports README mismatch for yarn", async () => {
     const root = await createRepo({
       "yarn.lock": "",
